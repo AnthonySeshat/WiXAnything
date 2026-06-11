@@ -76,7 +76,19 @@ const items = collectionId ? await queryCollection(collectionId, 12) : [];
         </div>
       )}
 
+      <section style="margin-top:40px">
+        <h2 style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#7dd3fc;margin-bottom:14px">
+          Live, code-owned component
+        </h2>
+        <quote-configurator data-title="Build your expandable home"></quote-configurator>
+        <p class="lead" style="margin-top:14px;font-size:14px">
+          Entirely Claude-authored code — and the <em>same</em> component drops into your real
+          Wix site as a Custom Element (see <code>examples/bridge/</code>).
+        </p>
+      </section>
+
       <footer>Headless front end · deploy anywhere (Wix / Vercel / Netlify) · does not modify your Studio site.</footer>
     </main>
+    <script type="module" src="/quote-configurator.js"></script>
   </body>
 </html>
