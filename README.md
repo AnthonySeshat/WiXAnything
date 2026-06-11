@@ -1,166 +1,155 @@
 # WiXAnything
 
-> **Make Claude actually see your Wix Studio elements — and edit the site in code.**
+> **Give Claude Code real sight of a Wix Studio site — every element, ID, type, layout & style — so the Velo it writes is accurate and correctly connected.**
 
-When you wire up [Claude with Wix](https://www.wix.com/blog/how-to-use-claude-with-wix)
-(Wix CLI + Git Integration), Claude edits your Velo code locally — but it **can't see the
-containers, text, images, and IDs you placed in the Studio editor.** It looks "blind" and
-guesses wrong, e.g.:
+![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Deps](https://img.shields.io/badge/runtime%20deps-0-brightgreen)
+![Status](https://img.shields.io/badge/status-private%20beta-orange)
+
+WiXAnything is a drop-in **knowledge layer** for the official [Wix + Claude](https://www.wix.com/blog/how-to-use-claude-with-wix)
+setup (Wix CLI + Git Integration). The official integration lets Claude edit your site's
+**code**; WiXAnything lets Claude actually **see the site** — so it stops guessing.
+
+---
+
+## Why this exists
+
+When you connect a Wix site to a local repo, Claude can edit your Velo (JS) code — but it's
+**blind to everything you built in the Studio editor.** It can't see which elements exist,
+their IDs, their types, or how the page is laid out. So it guesses, and writes code like:
 
 ```js
 $w('#modelsDesc').text = 'Modern';   // ❌ fails — #modelsDesc is a Box, not a Text
 ```
 
-**Why:** Wix *does* store every element's `#id → $w type` on disk, at
-`.wix/types/<pageId>/<pageId>.d.ts` — but that folder is in **`.gitignore`**, so a
-gitignore-respecting agent never reads it. This addon surfaces those maps into committed,
-Claude-readable files, keeps them fresh, and adds patterns to build new UI entirely in code.
+…which targets the wrong element or the wrong property, and you burn time fixing it.
+
+**The fix is hiding in plain sight.** Wix *already* generates a map of every element's
+`#id → $w type` (via the official `wix sync-types`) — but it lands in the **gitignored**
+`.wix/types/` folder, so a gitignore-respecting agent never reads it. WiXAnything:
+
+1. **Surfaces that map** into committed, agent-readable files (`wix-elements.md` / `.json`) —
+   every element's ID, type, page, whether Velo references it, and **how to set it**.
+2. **Adds the visual layer** by reading your *published* page: real **geometry, computed
+   styles, and layering**, keyed back to your IDs. *(The official Wix MCP/plugin exposes none
+   of this to an external agent — Wix's own dev community has an open request for it.)*
+
+**Result:** Claude codes against your **actual** site — right elements, right properties,
+correctly connected — the first time. It's a read-only layer that **extends** the official
+Wix + Claude integration and stays 100% within Wix's Terms (official tooling + reading your
+own public page; no editor automation).
 
 ```
-Before:  Claude can't see elements → guesses IDs/types → broken Velo, manual back-and-forth
-After:   Claude reads wix-elements.md → every ID + correct type + how to set it → it just works
+Before:  Claude can't see elements → guesses IDs/types → broken Velo, back-and-forth
+After:   Claude reads wix-elements.md → every ID + type + layout + how to set it → it just works
 ```
 
 ---
 
-## Quick start
+## Demo
 
-Works on **any** Wix CLI (Git Integration) site — nothing here is site-specific.
-This repo is currently **private/unpublished** (pre-release), so for now you install it from
-a local clone. (`npm publish` would later enable `npx wixanything` for everyone.)
+<!-- ▶️ When the GIF exists, delete this comment and uncomment the next line:
+![WiXAnything demo](docs/media/demo.gif)
+-->
+> ▶️ **Demo video:** drop a 60–90s screen recording at `docs/media/demo.gif`
+> (install → `wix:full` scan → Claude editing Velo accurately), then uncomment the image
+> tag above. See [`docs/media/`](docs/media) for capture tips.
 
-From the folder of the Wix site you want to enable (the one with `wix.config.json`):
+**What the generated map looks like** (real output — type + live layout + how-to-set):
+
+| ID | Type | Layout (x,y · w×h) | How to set it |
+|----|------|--------------------|---------------|
+| `#styleRepeater` | `Repeater` | `496,433 · 616×351` | `.data = [...]`, `.onItemReady(...)` |
+| `#modelsDesc` | `Box` | `28,802 · 415×420` | **NO `.text`** — set child Text elements |
+| `#quoteMulti` | `MultiStateBox` | `457,335 · 691×875` | **NO `.text`** — `.changeState("id")` |
+| `#nextBtn1` | `Button` | `933,1151 · 192×57` | `.label`, `.link`, `.onClick()` |
+| `#heroTitle` | `Text` | `22,212 · 296×21` | `.text = "..."` |
+
+(Full real example: [`examples/demo/wix-elements.md`](examples/demo/wix-elements.md).)
+
+---
+
+## Install
+
+Run from your Wix site's repo root (the folder with `wix.config.json`):
 
 ```bash
-# clone WiXAnything somewhere, then run its installer against your site:
-node /path/to/WiXAnything/scripts/wix-init.mjs --repo "C:/path/to/your-wix-site"
-#   preview first with:  --dry-run
+# 1) install the addon straight from GitHub (no local paths)
+npx -y github:AnthonySeshat/WiXAnything --repo .
 
-# once published to npm, this becomes simply:  npx wixanything
+# 2) enable the visual (layout/styles) scanner — one-time
+cd visual && npm install && cd ..
+
+# 3) one command: sync element types + scan layout/styles + merge
+npm run wix:full -- --url "<your-published-page-url>"
 ```
 
-The installer copies the scripts, a `CLAUDE.md`, docs, and the `visual/` scanner into your
-site, and patches its `package.json` with the `wix:*` commands below.
+Then open **`wix-elements.md`** — that's what Claude reads. Re-run `npm run wix:full …`
+(or `npm run wix:elements` for types only) after any change in the editor.
 
-Then:
-
-```bash
-npm run wix:elements      # wix sync-types + (re)generate the element map
-```
-
-Open **`wix-elements.md`** — that's what Claude reads. Re-run `npm run wix:elements`
-after any change in the editor (added/renamed an element, etc.).
-
-> 🔒 Requires being logged in to the Wix CLI (`wix login`) the first time, so it can pull
-> the latest element maps. After that the committed `wix-elements.md` works for anyone.
+> 🔒 Needs the Wix CLI logged in (`wix login`) once, so it can sync the latest element maps.
+> The committed `wix-elements.md` then works for anyone. _(This repo is private/pre-release;
+> the `npx github:` install works for accounts with access. `npm publish` would later enable
+> a public `npx wixanything`.)_
 
 ---
 
 ## What you get
 
-### 🟢 Tier 1 — Claude can SEE every element
-`wix-elements.md` / `wix-elements.json` at your repo root: every page, every element, its
-`$w` type, hidden state, whether Velo references it, and **how to set it** (the correct
-property per type). Plus a `CLAUDE.md` rules block. Refreshed by `wix sync-types`
-(headless — **no `wix dev` needed**).
-
-| ID | Type | How to set it |
-|----|------|---------------|
-| `#heroTitle` | `Text` | `.text = "..."` |
-| `#ctaButton` | `Button` | `.label`, `.link`, `.onClick()` |
-| `#modelsDesc` | `Box` | **NO `.text`** — set child Text elements |
-| `#stepStates` | `MultiStateBox` | **NO `.text`** — `.changeState("id")` |
-| `#promoBanner` | `HiddenCollapsedElement` | 🙈 hidden — `.show()` first, type unknown |
-
-(See a full real example in [`examples/demo/wix-elements.md`](examples/demo/wix-elements.md).)
-
-### 🎨 Visual layer (optional power-up)
-The `.wix/types` map is id→type only — no positions or styles. The **`visual/`** scraper
-reads your **published** page (ToS-safe — just loads a public site, no editor automation)
-and adds real **geometry (x/y/w×h), computed styles, and layering** keyed to your `#IDs`:
-```bash
-cd visual && npm install
-# --full walks multi-state UIs (e.g. a step form) so EVERY step's elements get captured
-node scan.mjs "<published-page-url>" --out wix-visual.json --elements ../wix-elements.json --full
-node ../scripts/wix-elements-gen.mjs --repo <your-site> --visual visual/wix-visual.json
-```
-Now the map has a **Layout** column (`x,y · w×h`) and Claude can reason about how the site
-actually looks — something the official Wix + Claude integration can't. See
-[`visual/README.md`](visual/README.md).
-
-### 🟡 Tier 2 — Claude OWNS new sections in code
-```bash
-npm run wix:scaffold custom-element pricing-widget   # web component, 100% code-owned
-npm run wix:scaffold html-component promo-banner     # iframe + postMessage bridge
-npm run wix:scaffold repeater model-cards            # data-driven list pattern
-```
-Each needs **one** placement in the editor (see the generated `WIRING.md`); after that
-it's pure code.
-
-### 🟢 L2 — the supported companion app
-```bash
-npm run wix:app "Quote Tools"   # private @wix/cli app: auto-placed widget + editor panel
-```
-Ships a code-owned Site Widget that **auto-adds to the homepage at install**, plus an
-Editor Add-on panel (real `@wix/editor` SDK) that reads the selection and fully drives the
-widget's props/preset from inside Wix Studio. Finish via `companion-app/SETUP.md`.
-
-### 📄 The honest ceiling
-[`docs/wix-addon/STRUCTURAL-EDITING.md`](docs/STRUCTURAL-EDITING.md) grades exactly what's
-possible: L0/L1 (code-only, proven), L2 (supported companion app), L3 (unsupported
-Local-Editor automation — real account-ban risk), L4 (Headless — full freedom, but a
-rebuild). [`MCP-SETUP.md`](docs/MCP-SETUP.md) — Wix MCP is for **data** (CMS/CRM), not elements.
-
----
+- **🟢 Element map (proven).** `wix-elements.md`/`.json` + a `CLAUDE.md` rules block: every
+  element, its `$w` type, hidden state, Velo-referenced flag, and per-type "how to set it".
+  Refreshed headlessly by `wix sync-types`. `npm run wix:diff` shows what changed.
+- **🎨 Visual layer (proven).** The `visual/` scanner reads your published page for real
+  geometry + computed styles + layering, merged into the map (`--full` walks multi-step UIs).
+- **🟡 Code-owned UI.** `npm run wix:scaffold custom-element|html-component|repeater <name>` —
+  sections Claude owns 100% in code (one editor placement each). See [`docs/BRIDGE.md`](docs/BRIDGE.md).
+- **🟢 Companion app.** `npm run wix:app "<name>"` — a private `@wix/cli` app that auto-places
+  a code-owned widget on the homepage + an Editor panel (real `@wix/editor` SDK).
+- **📄 The honest ceiling.** [`docs/STRUCTURAL-EDITING.md`](docs/STRUCTURAL-EDITING.md) grades
+  what's possible vs. what needs Wix's internal APIs. [`docs/MCP-SETUP.md`](docs/MCP-SETUP.md):
+  Wix MCP is for data (CMS/CRM), not elements.
 
 ## Commands
 
 | Command | Does |
 |---------|------|
-| `npm run wix:elements` | `wix sync-types` + regenerate the map (everyday refresh) |
-| `npm run wix:elements:fast` | regenerate from cached `.wix/types` (no network) |
-| `npm run wix:diff` | regenerate + report which ids were **added / removed / retyped** since last sync |
-| `npm run wix:doctor` | auth check → sync → generate, with a clear status report |
-| `npm run wix:scaffold <kind> <name>` | scaffold a code-owned component (L1) |
-| `npm run wix:build-element <entry.js>` | bundle a custom element into the single file Wix hosts |
-| `npm run wix:app "<App Name>"` | scaffold the supported companion app (L2): auto-placed widget + editor panel |
-
-The **bridge** (`docs/wix-addon/BRIDGE.md`) is the compliant "code → real Wix site" loop —
-see the polished reference component in [`examples/bridge/`](examples/bridge/).
+| `npm run wix:full -- --url "<page>"` | element map **+** layout/styles **+** merge (one shot) |
+| `npm run wix:elements` | `wix sync-types` + regenerate the element map (types) |
+| `npm run wix:diff` | regenerate + report ids **added / removed / retyped** |
+| `npm run wix:doctor` | auth check → sync → generate, with status |
+| `npm run wix:scaffold <kind> <name>` | scaffold a code-owned component |
+| `npm run wix:app "<name>"` | scaffold the companion app (widget + editor panel) |
 
 ## How it works
 
 ```
-.wix/types/<pageId>/<pageId>.d.ts   (gitignored; id→type maps; pulled by `wix sync-types`)
-        │  parse + merge masterPage + tag referenced-in-Velo + per-type guidance
-        ▼
-wix-elements.json   wix-elements.md   CLAUDE.md block   (committed; Claude reads these)
+.wix/types/<pageId>.d.ts         published page (Thunderbolt model + rendered DOM)
+   (gitignored id→type map,         │  comp-id ↔ nickname + geometry + computed styles
+    via official wix sync-types)     ▼
+        └────────────┬───────────────┘
+                     ▼
+   wix-elements.json + wix-elements.md + CLAUDE.md   (committed; Claude reads these)
 ```
 
-Pure Node, **zero runtime dependencies**. `npm run selftest` validates it without a real site.
+Pure Node, **zero runtime dependencies** (the visual scanner adds Playwright in `visual/`).
+`npm run selftest` validates the toolkit without a real site.
 
 ## Limits to know
 
-- The `.wix/types` map is **id→type only**; geometry + styles come from the optional
-  **visual scan** (`visual/`), which reads the **published** site (use `--full` for
-  multi-step UIs; it reflects the last-published/test-site state).
+- The `.wix/types` map is **id→type only**; geometry/styles come from the optional visual
+  scan, which reads the **published/test-site** state (use `--full` for multi-step UIs).
 - `HiddenCollapsedElement` masks the real type until the element is shown.
 - `$w` can **never create** native elements — new native UI needs one editor placement
-  (or a code-owned Custom Element / the companion app).
+  (or a code-owned Custom Element / the companion app). True visual structural editing of
+  native elements is a Wix-internal capability (see the honest ceiling doc).
 
-## Troubleshooting
+## Security
 
-- **“no .wix/types present”** → run `wix login`, then `npm run wix:elements` (or `wix dev`
-  once to populate it).
-- **`wix sync-types` fails** → it's non-fatal; the committed `wix-elements.md` still works.
-  Make sure you're logged in (`wix whoami`).
-- **A new element isn't in the map** → run `npm run wix:elements` after editing in the
-  editor (the maps only refresh on sync).
-- **Wix Git integration** → when a site is Git-connected the editor is read-only and Wix
-  pulls code from your repo. The generated files live at the repo root (not under `src/`);
-  if unsure, commit them on a branch first and confirm `wix publish` is happy.
+`.env` is never committed (gitignored + a pre-commit hook blocks it). The Wix Headless/OAuth
+client ID is public-by-design. See [`SECURITY.md`](SECURITY.md).
 
-## Contributing / license
+## License
 
-MIT — see [LICENSE](LICENSE). Issues and PRs welcome. Not affiliated with or endorsed by
-Wix.com or Anthropic.
+MIT — see [LICENSE](LICENSE). Not affiliated with or endorsed by Wix.com or Anthropic;
+"Wix"/"Velo" are trademarks of Wix.com Ltd., "Claude" of Anthropic.
