@@ -11,7 +11,9 @@
     "templates/",
     "assets/",
     "docs/",
-    "visual/",
+    "visual/scan.mjs",
+    "visual/package.json",
+    "visual/README.md",
     "examples/demo/",
     "README.md",
     "LICENSE"
