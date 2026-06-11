@@ -114,7 +114,11 @@ rebuild). [`MCP-SETUP.md`](docs/MCP-SETUP.md) — Wix MCP is for **data** (CMS/C
 | `npm run wix:diff` | regenerate + report which ids were **added / removed / retyped** since last sync |
 | `npm run wix:doctor` | auth check → sync → generate, with a clear status report |
 | `npm run wix:scaffold <kind> <name>` | scaffold a code-owned component (L1) |
+| `npm run wix:build-element <entry.js>` | bundle a custom element into the single file Wix hosts |
 | `npm run wix:app "<App Name>"` | scaffold the supported companion app (L2): auto-placed widget + editor panel |
+
+The **bridge** (`docs/wix-addon/BRIDGE.md`) is the compliant "code → real Wix site" loop —
+see the polished reference component in [`examples/bridge/`](examples/bridge/).
 
 ## How it works
 

@@ -8,9 +8,9 @@
 Hi Wix Business Development team,
 
 My name is [Your name]. I run [Your business] — a business currently built and operating on
-Wix — and I'm also a developer. Over the past few weeks I've built a working integration
-between **Anthropic's Claude (Claude Code)** and **Wix**, and I'd like to explore a
-partnership that lets it go further — natively and safely — inside the Wix platform.
+Wix — and I'm also a developer. I've built a working integration between **Anthropic's
+Claude (Claude Code)** and **Wix**, and I'd like to explore a partnership that lets it go
+further — natively and safely — inside the Wix platform.
 
 **What I've already built (using only official Wix tooling, fully within your Terms):**
 

@@ -85,6 +85,14 @@ try {
   ok(/@wix\/editor/.test(readFileSync(panelJs, 'utf8')), 'panel imports @wix/editor');
   ok(node(['--check', widgetJs]).status === 0, 'widget js is valid JS');
   ok(JSON.parse(readFileSync(join(dir, 'companion-app/widget/element.json'), 'utf8')).installation.staticContainer === 'HOMEPAGE', 'element.json auto-adds to HOMEPAGE');
+
+  // --- bridge: build-element bundler (dependency-free copy path, no network) -
+  console.log('build-element (bridge):');
+  writeFileSync(join(dir, 'comp.js'), 'class X extends HTMLElement{}\ncustomElements.define("x-y", X);\n');
+  const b = node([join(__dirname, 'wix-build-element.mjs'), join(dir, 'comp.js'), '--out', join(dir, 'out.js')]);
+  ok(b.status === 0, 'exits 0 on a no-imports component');
+  ok(existsSync(join(dir, 'out.js')), 'produces a single output file');
+  ok(node(['--check', join(__dirname, '..', 'examples', 'bridge', 'quote-configurator.js')]).status === 0, 'bridge reference component is valid JS');
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
