@@ -1,0 +1,12 @@
+{
+  "name": "wixanything-visual",
+  "private": true,
+  "type": "module",
+  "description": "Visual-layer scraper: reads the PUBLISHED Wix site (geometry + computed styles + layering) and maps it to Velo element IDs. ToS-safe (reads a public site, does not automate the editor).",
+  "scripts": {
+    "scan": "node scan.mjs"
+  },
+  "dependencies": {
+    "playwright": "^1.60.0"
+  }
+}

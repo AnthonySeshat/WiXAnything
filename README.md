@@ -71,6 +71,18 @@ property per type). Plus a `CLAUDE.md` rules block. Refreshed by `wix sync-types
 
 (See a full real example in [`examples/demo/wix-elements.md`](examples/demo/wix-elements.md).)
 
+### 🎨 Visual layer (optional power-up)
+The `.wix/types` map is id→type only — no positions or styles. The **`visual/`** scraper
+reads your **published** page (ToS-safe — just loads a public site, no editor automation)
+and adds real **geometry (x/y/w×h), computed styles, and layering** keyed to your `#IDs`:
+```bash
+cd visual && npm install
+node scan.mjs "<published-page-url>" --out wix-visual.json --elements ../wix-elements.json
+node ../scripts/wix-elements-gen.mjs --repo <your-site> --visual visual/wix-visual.json
+```
+Now the map has a **Layout** column and Claude can reason about how the site actually
+looks — something the official Wix + Claude integration can't. See [`visual/README.md`](visual/README.md).
+
 ### 🟡 Tier 2 — Claude OWNS new sections in code
 ```bash
 npm run wix:scaffold custom-element pricing-widget   # web component, 100% code-owned

@@ -10,6 +10,10 @@ node_modules/
 *.log
 .DS_Store
 
+# ── visual scraper (browser deps + generated output) ─────────────────────────
+visual/node_modules/
+visual/wix-visual.json
+
 # ── local-only generated maps (don't publish a real siteId / element names) ──
 examples/ottop/
 /wix-elements.json

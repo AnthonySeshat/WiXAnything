@@ -33,6 +33,7 @@ const REPO = arg('--repo', process.cwd());
 const OUT = arg('--out', REPO);
 const QUIET = argv.includes('--quiet');
 const DIFF = argv.includes('--diff'); // compare against the previous wix-elements.json before overwriting
+const VISUAL = arg('--visual', null); // optional wix-visual.json (geometry/styles from a published-site scan)
 const log = (...a) => { if (!QUIET) console.log(...a); };
 
 const TYPES_DIR = join(REPO, '.wix', 'types');
@@ -132,12 +133,29 @@ const referencedIn = (id) => {
 };
 
 // ----- parse master + pages -------------------------------------------------
+// optional visual layer (geometry/styles/layering from a published-site scan)
+let visualMap = {};
+if (VISUAL) { try { visualMap = (JSON.parse(readIfExists(VISUAL) || '{}').elements) || {}; } catch {} }
+const viz = (id) => {
+  const v = visualMap[id.replace('#', '')];
+  if (!v || !v.rendered) return null;
+  return {
+    box: v.box,
+    parentNickname: v.parentNickname ?? null,
+    style: v.style ? {
+      backgroundColor: v.style.backgroundColor, color: v.style.color, fontSize: v.style.fontSize,
+      fontFamily: v.style.fontFamily, position: v.style.position, borderRadius: v.style.borderRadius, zIndex: v.style.zIndex,
+    } : undefined,
+  };
+};
+
 const masterDts = readIfExists(join(TYPES_DIR, 'masterPage', 'masterPage.d.ts'));
 const masterEls = parseElementsMap(masterDts).map(e => ({
   ...e,
   hidden: e.type === 'HiddenCollapsedElement',
   referencedIn: referencedIn(e.id),
   guidance: guidance(e.type),
+  layout: viz(e.id),
 }));
 
 const pages = [];
@@ -150,6 +168,7 @@ for (const entry of readdirSync(TYPES_DIR)) {
     hidden: e.type === 'HiddenCollapsedElement',
     referencedIn: referencedIn(e.id),
     guidance: guidance(e.type),
+    layout: viz(e.id),
   }));
   const meta = pageMeta[entry] || { name: entry, file: null };
   pages.push({ pageId: entry, name: meta.name, file: meta.file, elementCount: els.length, elements: els });
@@ -168,6 +187,7 @@ const stats = {
   globalElements: masterEls.length,
   hidden: allEls.filter(e => e.hidden).length,
   referenced: allEls.filter(e => e.referencedIn.length).length,
+  withLayout: allEls.filter(e => e.layout).length,
   types: [...new Set(allEls.map(e => e.type))].sort(),
 };
 
@@ -179,10 +199,10 @@ const json = {
   generatedAt,
   site: { siteId: site.siteId ?? null, uiVersion: site.uiVersion ?? null },
   stats,
-  global: masterEls.map(({ id, type, hidden, referencedIn, guidance }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, guidance })),
+  global: masterEls.map(({ id, type, hidden, referencedIn, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, guidance, layout })),
   pages: pages.map(p => ({
     pageId: p.pageId, name: p.name, file: p.file, elementCount: p.elementCount,
-    elements: p.elements.map(({ id, type, hidden, referencedIn, guidance }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, guidance })),
+    elements: p.elements.map(({ id, type, hidden, referencedIn, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, guidance, layout })),
   })),
 };
 // ----- diff vs previous (the L0 mutation oracle) ----------------------------
@@ -222,16 +242,17 @@ writeFileSync(join(OUT, 'wix-elements.json'), JSON.stringify(json, null, 2));
 function table(els) {
   const rows = els.map(e => {
     const flag = e.hidden ? '🙈 hidden' : (e.referencedIn.length ? '· in code' : '·');
-    return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${e.guidance.replace(/\|/g, '\\|')} |`;
+    const lay = e.layout && e.layout.box ? `${e.layout.box.x},${e.layout.box.y} · ${e.layout.box.w}×${e.layout.box.h}` : '·';
+    return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${lay} | ${e.guidance.replace(/\|/g, '\\|')} |`;
   });
-  return ['| ID | Type | State | How to set it (Velo) |', '|----|------|-------|----------------------|', ...rows].join('\n');
+  return ['| ID | Type | State | Layout (x,y · w×h) | How to set it (Velo) |', '|----|------|-------|--------------------|----------------------|', ...rows].join('\n');
 }
 
 let md = '';
 md += `# Wix Elements — ${site.siteId ? 'site ' + site.siteId : 'this site'}\n\n`;
 md += `> **AUTO-GENERATED** by \`scripts/wix-elements-gen.mjs\` — do not edit by hand.\n`;
 md += `> Source: \`.wix/types/*\` (gitignored, refreshed by \`wix sync-types\`). Generated: ${generatedAt}\n\n`;
-md += `**${stats.pages} pages · ${stats.totalElements} elements** (${stats.globalElements} global, ${stats.hidden} hidden, ${stats.referenced} referenced in Velo).\n\n`;
+md += `**${stats.pages} pages · ${stats.totalElements} elements** (${stats.globalElements} global, ${stats.hidden} hidden, ${stats.referenced} referenced in Velo${stats.withLayout ? `, ${stats.withLayout} with live layout/styles` : ''}).\n\n`;
 md += `## ⚠ Read this before targeting elements\n`;
 md += `- These are the **only** element IDs that exist. \`$w('#id')\` can target these and **nothing else** — it **cannot create** new elements.\n`;
 md += `- The map is **id → type only**. There is **no geometry, parent/child, or layout** here. For visual context, open the Local Editor or ask for a screenshot.\n`;
