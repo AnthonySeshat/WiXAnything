@@ -134,9 +134,8 @@ console.log(`\n✓ coverage: ${renderedCount}/${compIds.length} nicknames with g
 
 let typeOf = {};
 if (ELEMENTS) { try { const j = JSON.parse(readFileSync(ELEMENTS, 'utf8')); for (const p of j.pages) for (const e of p.elements) typeOf[e.id.replace('#','')] = e.type; for (const e of (j.global||[])) typeOf[e.id.replace('#','')] = e.type; } catch {} }
-console.log('\n=== sample (nickname · type · box) ===');
-for (const nick of ['styleRepeater','modelsDesc','quoteMulti','submitBtn','layoutRepeater','exteriorCladdingRepeater','flooringRepeater','bedroomSelection']) {
-  const v = byNick[nick];
-  console.log(`  #${nick}: ${v && v.rendered ? `${typeOf[nick]||'?'} · ${v.box.x},${v.box.y} ${v.box.w}x${v.box.h}` : (v ? 'not rendered' : 'n/a')}`);
+console.log('\n=== sample of captured elements (nickname · type · box) ===');
+for (const [nick, v] of Object.entries(byNick).filter(([, v]) => v.rendered).slice(0, 8)) {
+  console.log(`  #${nick}: ${typeOf[nick] || '?'} · ${v.box.x},${v.box.y} ${v.box.w}x${v.box.h}`);
 }
 await browser.close();

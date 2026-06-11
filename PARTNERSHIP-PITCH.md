@@ -1,73 +1,70 @@
-# Wix partnership pitch — email draft
+# Wix outreach — email draft
 
 **To:** bizdev@wix.com
-**Subject:** Partnership: AI‑native site building & editing for Wix (Claude × Wix)
+**(Secondary, dev-platform):** a support ticket / Discord via https://dev.wix.com/docs/build-apps/manage-your-app/contact-us/contact-us
+**Subject:** Extending the Wix + Claude integration — external-agent access to the Velo/element layer
 
 ---
 
 Hi Wix Business Development team,
 
-My name is [Your name]. I run [Your business] — a business currently built and operating on
-Wix — and I'm also a developer. I've built a working integration between **Anthropic's
-Claude (Claude Code)** and **Wix**, and I'd like to explore a partnership that lets it go
-further — natively and safely — inside the Wix platform.
+My name is **Oliver Wilson** — I manage **OTTOP** (Brisbane, Australia), a business built and
+running on Wix Studio. I'm also a developer, and I've built a working tool that **extends the
+existing Wix + Claude (Anthropic) integration** in a direction your platform doesn't yet
+cover for third parties. I'd like to explore doing it **with** Wix.
 
-**What I've already built (using only official Wix tooling, fully within your Terms):**
+**The context (so I'm not telling you things you already know):** Wix already partners with
+Anthropic — the official Wix MCP server and Claude plugin let Claude work with Wix sites, and
+Aria brings AI editing inside Studio. My tool sits in the **one gap those don't fill**: giving
+a best-in-class **external** coding agent — Claude Code, running in the developer's own repo —
+a complete, structured view of a *real* Wix site so it can edit Velo with confidence.
 
-1. **Element visibility for AI.** A tool that surfaces a Wix Studio site's complete element
-   map — every element ID and type, per page — to Claude, by reading the Wix CLI's generated
-   type definitions (`.wix/types`) and the official `wix sync-types`. This solves the core
-   blocker today: AI assistants can't "see" the containers, text, and images placed in the
-   Studio editor, so they can't reliably write Velo against them. Now they can.
-2. **Code‑owned components.** Claude scaffolds Custom Elements / widget code that drop into a
-   real Wix site, giving the AI full control of those sections in code.
-3. **Headless front‑ends.** Using the official `@wix/sdk`, Claude builds complete,
-   code‑controlled front‑ends that reuse a Wix site's data (CMS, Stores, Members) — full
-   creative freedom, deployable on Wix or anywhere.
+**What it does today, using only official Wix tooling** (Git Integration, the Wix CLI,
+`wix sync-types`, `@wix/sdk`) — entirely within your Terms:
 
-Everything above is **100% within Wix's Terms** — no reverse‑engineering, no editor
-automation, no scraping. It runs on official CLIs, SDKs, and the app framework.
+- **Sees every element.** It turns the Wix CLI's element type definitions into a committed,
+  agent-readable inventory — every element's ID, `$w` type, page, and whether Velo references
+  it. (Today an external agent is effectively *blind* to the elements placed in Studio.)
+- **Sees the layout & styling.** By reading the **published** page, it adds real geometry,
+  computed styles, and parent/child layering to each element — so Claude understands how the
+  site actually *looks*, not just its code. The official MCP/plugin exposes none of this to an
+  external agent.
+- **Edits Velo against real IDs**, scaffolds Custom Elements, and surfaces everything as a
+  reviewable, version-controlled artifact.
 
-**The opportunity — what a partnership would unlock:**
+**Why I'm reaching out instead of just using it:** the deepest value needs Wix. Your own
+developer community has an **open, vote-collecting request to add element-ID and Velo support
+to the Wix MCP** — which tells me this is a real, recognised gap. With official, supported
+access to that element/Velo surface for external agents (and, longer term, the editor APIs
+that power Aria), this becomes a first-class capability rather than a careful workaround — and
+it keeps the fast-growing wave of AI-first builders **inside** Wix's ecosystem.
 
-There is exactly **one** capability that would turn this into true AI‑native site editing:
-**supported, programmatic write access to the Studio editor's component model** (the layer
-behind `@wix/platform-editor-sdk` / document services), so an AI can **add, move, resize,
-and arrange native elements** on a real Wix site the way a designer does in the editor.
-Today that's internal‑only. With partner / early access — or a sanctioned API — **Claude
-could become a genuine AI co‑designer inside Wix**, letting a fast‑growing population of
-AI‑first builders create and edit real Wix sites conversationally.
+I'd love to show you a short **live demo** on my own site (an expandable-homes configurator),
+share a private repository, and discuss how this could **extend the existing Wix–Anthropic
+relationship**. I'm happy to work within whatever review, sandboxing, or partner-app
+constraints you require.
 
-**Why this matters for Wix:**
-
-- **Category leadership:** positions Wix as the leading **AI‑native website platform** at the
-  exact moment this category is forming.
-- **Growth:** drives new site creation and Premium upgrades from AI‑first builders.
-- **Retention of the AI building wave inside Wix's ecosystem** — rather than it flowing to
-  headless/competitor stacks.
-
-I'd love to show you a **live demo** and discuss how to do this safely within Wix's platform
-and partner framework. I can share a private repository, a recorded walkthrough, and a
-one‑page technical summary of precisely which API surface would be involved — and I'm happy
-to work within whatever review, sandboxing, or partner‑app constraints you'd require.
-
-I'd genuinely rather build this **with** Wix than around it. Thank you for your time — I
-think there's a real and timely opportunity here.
+Thank you for your time — I think there's a timely, concrete opportunity here, and I'd much
+rather build it with Wix than around it.
 
 Best regards,
-[Your name]
-[Your business / role]
-[Email] · [Phone]
-[Optional: link to demo video / private repo]
+**Oliver Wilson**
+Manager, OTTOP — Brisbane, Australia
+[your email] · [your phone]
+[optional: link to a 60–90s demo video]
 
 ---
 
 ## Notes before you send
-- **Primary contact:** `bizdev@wix.com` (Wix Business Development — the official channel for
-  partnership/integration proposals). Media only: `pr@wix.com`.
-- **Secondary paths** if you want more surface area: the **Wix Partner Program**
-  (wix.com/partners) and the **Wix Dev Center** community (dev.wix.com).
-- **Before sending:** fill every `[bracket]`, and consider attaching/linking a 60–90s screen
-  recording of Claude reading the element map + building a Headless page — a working demo is
-  far more persuasive than the description.
-- Keep the repo **private** and share it read‑only on request (it is private now).
+- **Recipient:** `bizdev@wix.com` is the **verified** official partnership channel (per Wix's
+  "Contacting Wix Business Development" help article). `devpartners@wix.com` could **not** be
+  verified — don't use it (risk of bounce). For a parallel technical touchpoint, file a Wix
+  App-Developer support ticket / Discord via the dev.wix.com contact page above.
+- **Fill the `[brackets]`** (email, phone) and, ideally, attach/link a 60–90s screen recording
+  of Claude reading your element map **with the layout/styles column** and editing Velo — a
+  working demo lands far harder than the description.
+- **Accuracy (these were corrected from an earlier draft):** (1) the Wix↔Anthropic partnership
+  **already exists** — frame this as *extending* it, not creating one; (2) AI visual editing is
+  **not** "future" — Aria ships it today — so the ask is *external-agent* access to those
+  APIs, not the capability itself.
+- Keep the repo **private**; offer read-only access on request.

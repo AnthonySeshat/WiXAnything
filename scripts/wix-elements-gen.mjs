@@ -258,7 +258,7 @@ md += `- These are the **only** element IDs that exist. \`$w('#id')\` can target
 md += `- The map is **id → type only**. There is **no geometry, parent/child, or layout** here. For visual context, open the Local Editor or ask for a screenshot.\n`;
 md += `- **\`HiddenCollapsedElement\` (🙈) masks the real type.** A hidden Text, Box, or MultiStateBox all show as \`HiddenCollapsedElement\`. \`.expand()\`/\`.show()\` it first; confirm the real type in the editor before using \`.text\`/\`.label\`.\n`;
 md += `- **"in code" just means some Velo file references the id.** On editor-built sites most elements are NOT referenced in code — that is normal, **not** "unused".\n`;
-md += `- A **\`Box\`/\`MultiStateBox\` has NO \`.text\`.** (This is the classic bug — e.g. \`#modelsDesc\` is a \`Box\`, so set its child Text elements, don't do \`.text\` on it.)\n\n`;
+md += `- A **\`Box\`/\`MultiStateBox\` has NO \`.text\`.** Calling \`.text\` on a container is the classic bug — set its **child** Text elements, or use \`.changeState()\` for a MultiStateBox.\n\n`;
 md += `## 🌐 Global elements (header / footer / menus — addressable on EVERY page)\n\n`;
 md += table(masterEls) + '\n\n';
 for (const p of pages) {

@@ -42,11 +42,14 @@ last sync (note: move/resize/restyle don't change ids, so they won't show — co
 - "Referenced in code" in the map only means *some Velo file mentions the id*. On
   editor-built sites **most elements aren't referenced — that's normal, not "unused".**
 
-## 3. The map is id→type only — no layout
+## 3. Layout/styles — from the optional visual scan
 
-There is **no geometry, parent/child, or styling** on disk. For visual context, open
-the Local Editor (`wix dev`) or ask the user for a screenshot. If you need to know
-which Text lives inside `#someBox`, ask — the map can't tell you nesting.
+The `.wix/types` map is **id→type only**. But if a visual scan has been run (`visual/` —
+reads the **published** page, ToS-safe), `wix-elements.md` gains a **Layout** column and
+`wix-elements.json` carries `layout: { box, style, parentNickname }` per element — real
+position, size, computed styles, and parent. If those are absent, ask for a screenshot or
+run the scan (see `visual/README.md`). Layout reflects the **published/test-site** state,
+and multi-state UIs only capture rendered steps.
 
 ## 4. To add NEW UI that you fully control → use a code-owned component
 

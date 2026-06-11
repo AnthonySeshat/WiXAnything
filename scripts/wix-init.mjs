@@ -74,6 +74,11 @@ copyTree(join(ADDON, 'templates'), join('scripts', 'wix-addon-templates'));
 say('2) docs');
 copyTree(join(ADDON, 'docs'), join('docs', 'wix-addon'));
 
+// ---- 2b. visual scanner (optional power-up) --------------------------------
+say('2b) visual scanner');
+for (const f of ['scan.mjs', 'package.json', 'README.md'])
+  copy(join(ADDON, 'visual', f), join('visual', f));
+
 // ---- 3. CLAUDE.md (merge) --------------------------------------------------
 say('3) CLAUDE.md');
 const addonClaude = readFileSync(join(ADDON, 'assets', 'CLAUDE.md'), 'utf8');
@@ -141,5 +146,6 @@ say(`\n✅ Installed. Next:`);
 say(`   • Read wix-elements.md (the element map Claude now uses).`);
 say(`   • Refresh anytime: npm run wix:elements`);
 say(`   • New code-owned section: npm run wix:scaffold custom-element <name>`);
+say(`   • Visual layer (geometry/styles): cd visual && npm install, then see visual/README.md`);
 say(`   • Ceiling & options: docs/wix-addon/STRUCTURAL-EDITING.md`);
 if (!DRY) say(`\n   ⚠ Review changes before committing. Consider whether to commit wix-elements.* (recommended) and how it interacts with your Wix Git sync.`);

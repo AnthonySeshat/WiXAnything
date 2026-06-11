@@ -25,19 +25,22 @@ After:   Claude reads wix-elements.md → every ID + correct type + how to set i
 
 ## Quick start
 
-Inside your Wix CLI repo (the folder with `wix.config.json`):
+Works on **any** Wix CLI (Git Integration) site — nothing here is site-specific.
+This repo is currently **private/unpublished** (pre-release), so for now you install it from
+a local clone. (`npm publish` would later enable `npx wixanything` for everyone.)
+
+From the folder of the Wix site you want to enable (the one with `wix.config.json`):
 
 ```bash
-# one-liner (after this package is published to npm):
-npx wixanything
-
-# or, straight from GitHub before publishing:
-npx github:AnthonySeshat/WiXAnything
-
-# or clone this repo and run the installer at your site:
+# clone WiXAnything somewhere, then run its installer against your site:
 node /path/to/WiXAnything/scripts/wix-init.mjs --repo "C:/path/to/your-wix-site"
 #   preview first with:  --dry-run
+
+# once published to npm, this becomes simply:  npx wixanything
 ```
+
+The installer copies the scripts, a `CLAUDE.md`, docs, and the `visual/` scanner into your
+site, and patches its `package.json` with the `wix:*` commands below.
 
 Then:
 
@@ -77,11 +80,13 @@ reads your **published** page (ToS-safe — just loads a public site, no editor 
 and adds real **geometry (x/y/w×h), computed styles, and layering** keyed to your `#IDs`:
 ```bash
 cd visual && npm install
-node scan.mjs "<published-page-url>" --out wix-visual.json --elements ../wix-elements.json
+# --full walks multi-state UIs (e.g. a step form) so EVERY step's elements get captured
+node scan.mjs "<published-page-url>" --out wix-visual.json --elements ../wix-elements.json --full
 node ../scripts/wix-elements-gen.mjs --repo <your-site> --visual visual/wix-visual.json
 ```
-Now the map has a **Layout** column and Claude can reason about how the site actually
-looks — something the official Wix + Claude integration can't. See [`visual/README.md`](visual/README.md).
+Now the map has a **Layout** column (`x,y · w×h`) and Claude can reason about how the site
+actually looks — something the official Wix + Claude integration can't. See
+[`visual/README.md`](visual/README.md).
 
 ### 🟡 Tier 2 — Claude OWNS new sections in code
 ```bash
@@ -136,10 +141,12 @@ Pure Node, **zero runtime dependencies**. `npm run selftest` validates it withou
 
 ## Limits to know
 
-- Maps are **id→type only** — no geometry/layout. Use the Local Editor / a screenshot for
-  visual context.
+- The `.wix/types` map is **id→type only**; geometry + styles come from the optional
+  **visual scan** (`visual/`), which reads the **published** site (use `--full` for
+  multi-step UIs; it reflects the last-published/test-site state).
 - `HiddenCollapsedElement` masks the real type until the element is shown.
-- `$w` can **never create** native elements — new native UI needs one editor placement.
+- `$w` can **never create** native elements — new native UI needs one editor placement
+  (or a code-owned Custom Element / the companion app).
 
 ## Troubleshooting
 
