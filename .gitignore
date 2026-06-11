@@ -19,6 +19,6 @@ visual/node_modules/
 visual/wix-visual.json
 
 # ── local-only generated maps (don't publish a real siteId / element names) ──
-examples/ottop/
+examples/_*/
 /wix-elements.json
 /wix-elements.md
