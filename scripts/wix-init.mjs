@@ -93,6 +93,8 @@ if (!existsSync(claudePath)) {
     writeFile('CLAUDE.md', cur.trimEnd() + '\n\n---\n\n' + addonClaude, 'appended addon section');
   }
 }
+// AGENTS.md — generic pointer so non-Claude agents (Cursor/Windsurf/…) find the map too
+if (!existsSync(join(REPO, 'AGENTS.md'))) copy(join(ADDON, 'assets', 'AGENTS.md'), 'AGENTS.md');
 
 // ---- 4. .claude/settings.json (merge permissions) --------------------------
 say('4) .claude/settings.json');

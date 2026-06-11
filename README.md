@@ -47,6 +47,22 @@ After:   Claude reads wix-elements.md → every ID + type + layout + how to set 
 
 ---
 
+## How it compares
+
+The official Wix + Claude integration edits your **code**, but nothing in it exposes the
+site's **elements, layout, or styles** to an external agent. That's the gap WiXAnything fills:
+
+| For an external coding agent | Wix MCP | Wix Site MCP | Aria (Wix AI) | **WiXAnything** |
+|---|:---:|:---:|:---:|:---:|
+| Element IDs + `$w` types | ❌ | ❌ | ❌ | ✅ |
+| Layout + computed styles + nesting | ❌ | ❌ | ❌ | ✅ |
+| Edit your Velo against real IDs | ➖ | ❌ | ❌ | ✅ |
+| AI visual editing of native elements | ❌ | ❌ | ✅¹ | ➖² |
+| CMS / Stores / bookings data | ✅ | ✅ | ➖ | ➖³ |
+
+<sub>¹ Aria edits visually but only as Wix's own **first-party** agent — not your repo/agent.
+² Frontier; needs Wix-internal APIs (see the ceiling doc).  ³ Use the Wix MCP for data.</sub>
+
 ## Install
 
 Run from your Wix site's repo root (the folder with `wix.config.json`):
