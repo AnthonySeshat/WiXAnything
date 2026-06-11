@@ -182,7 +182,7 @@ try {
   let packed = [];
   try { packed = (JSON.parse(pk.stdout)[0].files || []).map(f => f.path.replace(/\\/g, '/')); } catch {}
   if (packed.length) {
-    for (const need of ['.githooks/pre-commit', 'assets/CLAUDE.md', 'assets/AGENTS.md', 'assets/claude-settings.json', 'visual/scan.mjs', 'scripts/wix-init.mjs', 'scripts/wix-full.mjs', 'templates/custom-element/element.js'])
+    for (const need of ['.githooks/pre-commit', 'assets/CLAUDE.md', 'assets/AGENTS.md', 'assets/claude-settings.json', 'visual/scan.mjs', 'visual/lib.mjs', 'scripts/wix-init.mjs', 'scripts/wix-full.mjs', 'scripts/wix-lint.mjs', 'scripts/wix-check.mjs', 'templates/custom-element/element.js', 'templates/companion-app/panel/panel.js'])
       ok(packed.includes(need), `npm package ships ${need} (installer copies it)`);
     ok(!packed.some(p => p.includes('node_modules')), 'npm package excludes node_modules');
   } else {

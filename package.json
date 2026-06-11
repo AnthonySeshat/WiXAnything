@@ -13,6 +13,7 @@
     "docs/",
     ".githooks/",
     "visual/scan.mjs",
+    "visual/lib.mjs",
     "visual/package.json",
     "visual/README.md",
     "examples/demo/",

@@ -79,7 +79,7 @@ copyTree(join(ADDON, 'docs'), join('docs', 'wix-addon'));
 
 // ---- 2b. visual scanner (optional power-up) --------------------------------
 say('2b) visual scanner');
-for (const f of ['scan.mjs', 'package.json', 'README.md'])
+for (const f of ['scan.mjs', 'lib.mjs', 'package.json', 'README.md'])
   copy(join(ADDON, 'visual', f), join('visual', f));
 
 // ---- 3. CLAUDE.md (merge) --------------------------------------------------
