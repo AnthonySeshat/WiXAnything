@@ -22,6 +22,7 @@ const URL = argv.find(a => !a.startsWith('--'));
 const OUT = arg('--out', 'wix-visual.json');
 const ELEMENTS = arg('--elements', null);
 const FULL = argv.includes('--full');
+const SOFT = argv.includes('--soft'); // don't exit non-zero if the page model maps 0 nicknames
 const STEPS = Number(arg('--steps', '6'));
 if (!URL) { console.error('Usage: node scan.mjs <url> [--out f] [--elements f] [--full] [--steps n]'); process.exit(2); }
 
@@ -47,15 +48,32 @@ page.on('response', async (res) => {
 console.log('loading', URL);
 try { await page.goto(URL, { waitUntil: 'networkidle', timeout: 90000 }); } catch (e) { console.log('goto note:', e.message); }
 
-// nickname maps from the page model
+// nickname maps from the page model — hardened against whitespace, key order, and
+// structural keys that also point at comp-ids (parent/id/type/… are NOT nicknames).
 const comp2nick = {};
-const reConn = /"compId":"(comp-[a-z0-9]+)","role":"([A-Za-z][\w-]*)"/g;
-const reMap = /"([A-Za-z][\w-]*)":"(comp-[a-z0-9]+)"/g;
-for (const b of blobs) { let m; while ((m = reConn.exec(b))) comp2nick[m[1]] = m[2]; }
-for (const b of blobs) { let m; while ((m = reMap.exec(b))) if (!comp2nick[m[2]]) comp2nick[m[2]] = m[1]; }
+const STRUCTURAL = new Set(['compId', 'role', 'id', 'type', 'parent', 'dataQuery', 'propertyQuery',
+  'designQuery', 'behaviorQuery', 'connectionQuery', 'styleId', 'skin', 'componentType', 'metaData', 'layout', 'props', 'mobileStructure']);
+// (1) connection records {"compId":"comp-x","role":"<nick>"} in EITHER order, whitespace-tolerant
+const connA = /"compId"\s*:\s*"(comp-[a-z0-9]+)"[^}]*?"role"\s*:\s*"([A-Za-z][\w-]*)"/g;
+const connB = /"role"\s*:\s*"([A-Za-z][\w-]*)"[^}]*?"compId"\s*:\s*"(comp-[a-z0-9]+)"/g;
+for (const b of blobs) {
+  let m;
+  connA.lastIndex = 0; while ((m = connA.exec(b))) comp2nick[m[1]] = m[2];
+  connB.lastIndex = 0; while ((m = connB.exec(b))) comp2nick[m[2]] = m[1];
+}
+// (2) fallback flat map "<nick>":"comp-x" — skip structural keys so junk isn't treated as a nickname
+const flat = /"([A-Za-z][\w-]*)"\s*:\s*"(comp-[a-z0-9]+)"/g;
+for (const b of blobs) {
+  let m; flat.lastIndex = 0;
+  while ((m = flat.exec(b))) { if (!STRUCTURAL.has(m[1]) && !comp2nick[m[2]]) comp2nick[m[2]] = m[1]; }
+}
 const compIds = Object.keys(comp2nick);
 const nick2comp = {}; for (const [c, n] of Object.entries(comp2nick)) if (!nick2comp[n]) nick2comp[n] = c;
 console.log(`mapped ${compIds.length} nicknames from the page model`);
+if (blobs.length && compIds.length === 0) {
+  console.error('[visual] ⚠ mapped 0 nicknames from a non-empty page model — Wix format may have changed.');
+  if (!SOFT) { await browser.close(); process.exit(1); }
+}
 
 async function autoScroll() {
   await page.evaluate(async () => { const H = document.body.scrollHeight; for (let y = 0; y < H; y += 700) { window.scrollTo(0, y); await new Promise(r => setTimeout(r, 90)); } window.scrollTo(0, 0); });
