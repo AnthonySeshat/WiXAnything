@@ -88,6 +88,15 @@ Ships a code-owned Site Widget that **auto-adds to the homepage at install**, pl
 Editor Add-on panel (real `@wix/editor` SDK) that reads the selection and fully drives the
 widget's props/preset from inside Wix Studio. Finish via `companion-app/SETUP.md`.
 
+### 🚀 L4 — Headless (full creative freedom, in code)
+```bash
+cd headless && npm install && npm run dev
+```
+A runnable Astro front end (`headless/`) that reuses your existing Wix site's data via
+`@wix/sdk` — Claude controls **every** element/layout in code, deployable anywhere, 100%
+ToS-compliant. It runs *alongside* your Wix site (doesn't modify the Studio editor). See
+[`headless/SETUP.md`](headless/SETUP.md).
+
 ### 📄 The honest ceiling (L0–L4)
 [`docs/wix-addon/STRUCTURAL-EDITING.md`](docs/STRUCTURAL-EDITING.md) grades exactly what's
 possible: L0/L1 (code-only, proven), L2 (supported companion app), L3 (unsupported

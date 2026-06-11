@@ -1,0 +1,82 @@
+---
+// L4 Headless demo home page. EVERYTHING on this page is code Claude fully controls —
+// layout, structure, styling, components. It reuses the existing Wix site's DATA.
+import { wixConfigured, queryCollection } from '../lib/wix.js';
+
+const collectionId = import.meta.env.WIX_DEMO_COLLECTION || process.env.WIX_DEMO_COLLECTION || '';
+const items = collectionId ? await queryCollection(collectionId, 12) : [];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WiXAnything · Headless (L4)</title>
+    <style>
+      :root { --bg:#0b1020; --card:#121a33; --fg:#eef2ff; --muted:#9aa4c7; --accent:#22d3ee; }
+      * { box-sizing: border-box; } body { margin:0; background:var(--bg); color:var(--fg);
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+      .wrap { max-width: 980px; margin: 0 auto; padding: 56px 20px 80px; }
+      .badge { display:inline-block; font-size:12px; letter-spacing:.08em; text-transform:uppercase;
+        color:var(--accent); border:1px solid rgba(34,211,238,.35); padding:4px 10px; border-radius:999px; }
+      h1 { font-size: clamp(32px, 6vw, 56px); line-height:1.05; margin:18px 0 12px; }
+      p.lead { font-size:18px; color:var(--muted); max-width:60ch; }
+      .status { margin:28px 0; padding:14px 16px; border-radius:12px; background:var(--card);
+        border:1px solid rgba(255,255,255,.06); }
+      .dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:8px; }
+      .ok { background:#22c55e; } .warn { background:#f59e0b; }
+      .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; margin-top:18px; }
+      .card { background:var(--card); border:1px solid rgba(255,255,255,.06); border-radius:14px; padding:16px; }
+      .card h3 { margin:0 0 6px; font-size:15px; } .card p { margin:0; color:var(--muted); font-size:13px; }
+      code { background:#0a0f1f; padding:2px 6px; border-radius:6px; color:var(--accent); }
+      footer { margin-top:48px; color:var(--muted); font-size:13px; }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <span class="badge">WiXAnything · L4 Headless</span>
+      <h1>A site Claude builds in code — powered by your Wix data.</h1>
+      <p class="lead">
+        Every element here is ordinary Astro/React code: add, move, restyle, and restructure
+        anything, deterministically, with no editor and no Wix-internal APIs. Business data
+        (CMS, Stores, Members…) comes from your existing Wix site through the official
+        <code>@wix/sdk</code>.
+      </p>
+
+      <div class="status">
+        {wixConfigured
+          ? <><span class="dot ok"></span>Wix client configured — reusing your site's data.</>
+          : <><span class="dot warn"></span>No <code>WIX_CLIENT_ID</code> yet — set it in <code>.env</code> (see <code>SETUP.md</code>) to pull live data.</>}
+      </div>
+
+      {collectionId && items.length > 0 && (
+        <section>
+          <h2>From collection <code>{collectionId}</code></h2>
+          <div class="grid">
+            {items.map((it) => (
+              <article class="card">
+                <h3>{it.title ?? it.name ?? it._id}</h3>
+                <p>{(it.description ?? it.summary ?? '').toString().slice(0, 120)}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {collectionId && items.length === 0 && (
+        <div class="status"><span class="dot warn"></span>
+          Collection <code>{collectionId}</code> returned no items (check the id / public read permissions).
+        </div>
+      )}
+
+      {!collectionId && (
+        <div class="status"><span class="dot warn"></span>
+          Set <code>WIX_DEMO_COLLECTION</code> to a CMS collection id to render live data here.
+        </div>
+      )}
+
+      <footer>Headless front end · deploy anywhere (Wix / Vercel / Netlify) · does not modify your Studio site.</footer>
+    </main>
+  </body>
+</html>
