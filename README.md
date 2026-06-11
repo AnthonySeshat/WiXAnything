@@ -115,6 +115,7 @@ Then open **`wix-elements.md`** — that's what Claude reads. Re-run `npm run wi
 | `npm run wix:elements` | `wix sync-types` + regenerate the element map (types) |
 | `npm run wix:diff` | regenerate + report ids **added / removed / retyped** |
 | `npm run wix:doctor` | auth check → sync → generate, with status |
+| `npm run wix:lint` | flag `.text`-on-a-container / unknown-id bugs in your Velo (uses the map) |
 | `npm run wix:scaffold <kind> <name>` | scaffold a code-owned component |
 | `npm run wix:app "<name>"` | scaffold the companion app (widget + editor panel) |
 

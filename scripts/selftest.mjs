@@ -121,6 +121,20 @@ try {
   const cm = readFileSync(join(dir, 'CLAUDE.md'), 'utf8');
   ok(/llms\.txt/.test(cm) && /Content \/ children/.test(cm), 'CLAUDE.md block filled with the rich-field digest + docs pointer');
 
+  // --- wix-lint (scoped Velo checks) ----------------------------------------
+  console.log('wix-lint:');
+  const ldir = mkdtempSync(join(tmpdir(), 'wix-lint-'));
+  mkdirSync(join(ldir, 'src/pages'), { recursive: true });
+  writeFileSync(join(ldir, 'wix-elements.json'), JSON.stringify({ global: [], pages: [{ pageId: 'p', elements: [{ id: '#card', type: 'Box' }, { id: '#title', type: 'Text' }] }] }));
+  writeFileSync(join(ldir, 'src/pages/code.js'), "$w('#card').text = 'x';\n$w('#ghost').text = 'y';\n$w('#title').text = 'ok';\n$w(dynamicId).text = 'skip';\n");
+  const lr = node([join(__dirname, 'wix-lint.mjs'), '--repo', ldir]);
+  ok(lr.status === 1, 'wix-lint exits non-zero when a container has .text');
+  ok(/#card/.test(lr.stdout) && /ERROR/.test(lr.stdout), 'flags .text on a Box (#card)');
+  ok(/#ghost/.test(lr.stdout) && /warn/i.test(lr.stdout), 'warns on unknown id (#ghost)');
+  ok(!/#title/.test(lr.stdout), 'does not flag valid Text .text (#title)');
+  rmSync(ldir, { recursive: true, force: true });
+  ok(node([join(__dirname, 'wix-lint.mjs'), '--repo', dir]).status === 0, 'clean fixture code → wix-lint passes');
+
   // --- run scaffolder -------------------------------------------------------
   console.log('scaffolder:');
   const s = node([join(__dirname, 'wix-scaffold.mjs'), 'custom-element', 'pricing-widget', '--repo', dir]);

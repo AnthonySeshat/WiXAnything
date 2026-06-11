@@ -66,7 +66,7 @@ if (!looksWix && !FORCE) {
 
 // ---- 1. scripts + templates ------------------------------------------------
 say('1) scripts + templates');
-for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs', 'wix-build-element.mjs', 'wix-full.mjs', 'wix-check.mjs'])
+for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs', 'wix-build-element.mjs', 'wix-full.mjs', 'wix-check.mjs', 'wix-lint.mjs'])
   copy(join(ADDON, 'scripts', f), join('scripts', f));
 copy(join(ADDON, '.githooks', 'pre-commit'), join('.githooks', 'pre-commit')); // staleness + .env guard (opt-in)
 copyTree(join(ADDON, 'templates'), join('scripts', 'wix-addon-templates'));
@@ -124,6 +124,7 @@ if (!existsSync(pkgPath)) {
   set('wix:diff', 'node scripts/wix-elements-gen.mjs --diff');   // regenerate + show added/removed/retyped ids
   set('wix:doctor', 'node scripts/wix-doctor.mjs');
   set('wix:check', 'node scripts/wix-check.mjs');               // staleness guard (map vs .wix/types)
+  set('wix:lint', 'node scripts/wix-lint.mjs');                 // catch .text-on-container / unknown-id in Velo
   set('wix:scaffold', 'node scripts/wix-scaffold.mjs');          // Tier 2: code-owned region
   set('wix:build-element', 'node scripts/wix-build-element.mjs'); // bundle a custom element to one file
   set('wix:app', 'node scripts/wix-app-scaffold.mjs');           // L2: companion app (widget + editor panel)
