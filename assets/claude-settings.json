@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/wix-elements-gen.mjs:*)",
+      "Bash(node scripts/wix-doctor.mjs:*)",
+      "Bash(node scripts/wix-scaffold.mjs:*)",
+      "Bash(npm run wix:elements:*)",
+      "Bash(npm run wix:doctor:*)",
+      "Bash(npm run wix:scaffold:*)",
+      "Bash(wix whoami:*)",
+      "Bash(wix sync-types:*)"
+    ]
+  }
+}

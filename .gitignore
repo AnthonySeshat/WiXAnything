@@ -1,0 +1,9 @@
+node_modules/
+*.log
+.DS_Store
+.env
+
+# Local-only: real generated maps from private sites (never publish a real siteId/elements)
+examples/ottop/
+/wix-elements.json
+/wix-elements.md

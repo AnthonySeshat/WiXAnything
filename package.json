@@ -1,0 +1,46 @@
+{
+  "name": "wixanything",
+  "version": "0.1.0",
+  "description": "Make Claude see and edit Wix Studio sites: surfaces the gitignored .wix/types element map, scaffolds code-owned UI, and documents/extends toward full structural editing.",
+  "type": "module",
+  "bin": {
+    "wixanything": "scripts/wix-init.mjs"
+  },
+  "files": [
+    "scripts/",
+    "templates/",
+    "assets/",
+    "docs/",
+    "examples/demo/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "init": "node scripts/wix-init.mjs",
+    "selftest": "node scripts/selftest.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "author": "Seshat",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AnthonySeshat/WiXAnything.git"
+  },
+  "bugs": {
+    "url": "https://github.com/AnthonySeshat/WiXAnything/issues"
+  },
+  "homepage": "https://github.com/AnthonySeshat/WiXAnything#readme",
+  "keywords": [
+    "wix",
+    "velo",
+    "wix-studio",
+    "claude",
+    "claude-code",
+    "wix-cli",
+    "ai",
+    "addon",
+    "codegen"
+  ]
+}
