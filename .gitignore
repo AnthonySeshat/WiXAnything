@@ -9,9 +9,6 @@
 node_modules/
 *.log
 .DS_Store
-headless/node_modules/
-headless/dist/
-headless/.astro/
 
 # ── local-only generated maps (don't publish a real siteId / element names) ──
 examples/ottop/

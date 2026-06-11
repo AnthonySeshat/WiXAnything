@@ -20,7 +20,7 @@
  *   (defaults: --repo = cwd, --out = <repo>)
  */
 
-import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, statSync, mkdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
 
 // ----- args -----------------------------------------------------------------
@@ -37,6 +37,8 @@ const log = (...a) => { if (!QUIET) console.log(...a); };
 
 const TYPES_DIR = join(REPO, '.wix', 'types');
 const PAGES_DIR = join(REPO, 'src', 'pages');
+
+mkdirSync(OUT, { recursive: true }); // ensure the output dir exists
 
 // ----- helpers --------------------------------------------------------------
 function readIfExists(p) { try { return readFileSync(p, 'utf8'); } catch { return null; } }
