@@ -20,7 +20,7 @@ When you connect a Wix site to a local repo, Claude can edit your Velo (JS) code
 their IDs, their types, or how the page is laid out. So it guesses, and writes code like:
 
 ```js
-$w('#modelsDesc').text = 'Modern';   // ❌ fails — #modelsDesc is a Box, not a Text
+$w('#priceBox').text = 'From $30k';   // ❌ fails — #priceBox is a Box, not a Text
 ```
 
 …which targets the wrong element or the wrong property, and you burn time fixing it.
@@ -44,29 +44,6 @@ own public page; no editor automation).
 Before:  Claude can't see elements → guesses IDs/types → broken Velo, back-and-forth
 After:   Claude reads wix-elements.md → every ID + type + layout + how to set it → it just works
 ```
-
----
-
-## Demo
-
-<!-- ▶️ When the GIF exists, delete this comment and uncomment the next line:
-![WiXAnything demo](docs/media/demo.gif)
--->
-> ▶️ **Demo video:** drop a 60–90s screen recording at `docs/media/demo.gif`
-> (install → `wix:full` scan → Claude editing Velo accurately), then uncomment the image
-> tag above. See [`docs/media/`](docs/media) for capture tips.
-
-**What the generated map looks like** (real output — type + live layout + how-to-set):
-
-| ID | Type | Layout (x,y · w×h) | How to set it |
-|----|------|--------------------|---------------|
-| `#styleRepeater` | `Repeater` | `496,433 · 616×351` | `.data = [...]`, `.onItemReady(...)` |
-| `#modelsDesc` | `Box` | `28,802 · 415×420` | **NO `.text`** — set child Text elements |
-| `#quoteMulti` | `MultiStateBox` | `457,335 · 691×875` | **NO `.text`** — `.changeState("id")` |
-| `#nextBtn1` | `Button` | `933,1151 · 192×57` | `.label`, `.link`, `.onClick()` |
-| `#heroTitle` | `Text` | `22,212 · 296×21` | `.text = "..."` |
-
-(Full real example: [`examples/demo/wix-elements.md`](examples/demo/wix-elements.md).)
 
 ---
 
