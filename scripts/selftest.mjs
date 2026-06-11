@@ -34,7 +34,7 @@ try {
   writeFileSync(join(dir, '.wix/types/p0001/p0001.d.ts'),
     '/// <reference path="..\\masterPage\\masterPage.d.ts" />\n' +
     'type PageElementsMap = MasterPageElementsMap & {\n' +
-    '\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#states": $w.MultiStateBox;\n\t"#secret": $w.HiddenCollapsedElement;\n}\n');
+    '\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#states": $w.MultiStateBox;\n\t"#secret": $w.HiddenCollapsedElement;\n\t"#hiddenBox": $w.Box & $w.HiddenCollapsedElement;\n\t"#card": $w.Box;\n}\n');
 
   // --- run generator --------------------------------------------------------
   console.log('generator:');
@@ -51,6 +51,8 @@ try {
   ok(/changeState/.test(byId['#states']?.guidance || ''), '#states (MultiStateBox) → changeState guidance');
   ok(byId['#secret']?.hidden === true, '#secret flagged hidden');
   ok(/TRUE TYPE UNKNOWN/.test(byId['#secret']?.guidance || ''), '#secret hidden-type warning present');
+  ok(byId['#hiddenBox']?.type === 'Box' && byId['#hiddenBox']?.hidden === true, 'intersection ($w.Box & Hidden) → type Box + hidden flag');
+  ok(page.elements.filter(e => e.id === '#card').length === 1, 'duplicate #card deduped to one entry');
   ok(existsSync(join(dir, 'wix-elements.md')), 'writes wix-elements.md');
 
   // --- run scaffolder -------------------------------------------------------
@@ -69,7 +71,7 @@ try {
   writeFileSync(join(dir, '.wix/types/p0001/p0001.d.ts'),
     '/// <reference path="..\\masterPage\\masterPage.d.ts" />\n' +
     'type PageElementsMap = MasterPageElementsMap & {\n' +
-    '\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#states": $w.MultiStateBox;\n\t"#secret": $w.HiddenCollapsedElement;\n\t"#newBtn": $w.Button;\n}\n');
+    '\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#states": $w.MultiStateBox;\n\t"#secret": $w.HiddenCollapsedElement;\n\t"#hiddenBox": $w.Box & $w.HiddenCollapsedElement;\n\t"#newBtn": $w.Button;\n}\n');
   const d = node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', dir, '--diff']);
   ok(d.status === 0, 'exits 0');
   ok(/\+ ADDED\s+#newBtn/.test(d.stdout || ''), 'diff reports #newBtn as ADDED');

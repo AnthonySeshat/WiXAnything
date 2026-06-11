@@ -60,13 +60,34 @@ function collectSrcCode(dir, acc = []) {
   return acc;
 }
 
-/** Parse a .d.ts ElementsMap into [{id, type}] preserving order. */
+/**
+ * Parse a .d.ts ElementsMap into [{id, type, hidden}] preserving order, deduped.
+ * Resilient to format drift: scopes to the `…ElementsMap = … { … }` block when
+ * present, reads the FULL right-hand side of each entry (so an intersection like
+ * `$w.Box & $w.HiddenCollapsedElement` keeps its real type AND the hidden flag),
+ * and de-duplicates by id.
+ */
 function parseElementsMap(dts) {
   const out = [];
+  const seen = new Set();
   if (!dts) return out;
-  const re = /"(#[^"]+)"\s*:\s*\$w\.(\w+)/g;
+  // Scope to the ElementsMap object body if we can find it; else parse the whole file.
+  const block = dts.match(/ElementsMap\s*=\s*(?:[^={]*&\s*)?\{([\s\S]*?)\n\}/);
+  const body = block ? block[1] : dts;
+  // Each entry: "#id": <RHS up to ; or end-of-line>
+  const re = /"(#[^"]+)"\s*:\s*([^;\n]+)/g;
   let m;
-  while ((m = re.exec(dts)) !== null) out.push({ id: m[1], type: m[2] });
+  while ((m = re.exec(body)) !== null) {
+    const id = m[1];
+    if (seen.has(id)) continue;
+    const types = [...m[2].matchAll(/\$w\.(\w+)/g)].map(x => x[1]);
+    if (!types.length) continue;
+    const hidden = types.includes('HiddenCollapsedElement');
+    // primary type = first non-hidden type if the entry is an intersection, else the type itself
+    const type = types.find(t => t !== 'HiddenCollapsedElement') || types[0];
+    seen.add(id);
+    out.push({ id, type, hidden });
+  }
   return out;
 }
 
@@ -152,7 +173,6 @@ const viz = (id) => {
 const masterDts = readIfExists(join(TYPES_DIR, 'masterPage', 'masterPage.d.ts'));
 const masterEls = parseElementsMap(masterDts).map(e => ({
   ...e,
-  hidden: e.type === 'HiddenCollapsedElement',
   referencedIn: referencedIn(e.id),
   guidance: guidance(e.type),
   layout: viz(e.id),
@@ -165,7 +185,6 @@ for (const entry of readdirSync(TYPES_DIR)) {
   if (!dts) continue;
   const els = parseElementsMap(dts).map(e => ({
     ...e,
-    hidden: e.type === 'HiddenCollapsedElement',
     referencedIn: referencedIn(e.id),
     guidance: guidance(e.type),
     layout: viz(e.id),
