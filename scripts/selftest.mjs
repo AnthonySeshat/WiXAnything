@@ -28,13 +28,13 @@ try {
   mkdirSync(join(dir, '.wix/types/masterPage'), { recursive: true });
   writeFileSync(join(dir, 'wix.config.json'), JSON.stringify({ siteId: 'selftest', uiVersion: '1' }));
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: 'selftest', scripts: {} }));
-  writeFileSync(join(dir, 'src/pages/Home.p0001.js'), '$w.onReady(()=>{ $w("#title").text="hi"; });\n');
+  writeFileSync(join(dir, 'src/pages/Home.p0001.js'), '$w.onReady(()=>{ $w("#title").text="hi"; $w("#text1").show(); });\nexport function ctaBtn_click(event){ }\n');
   writeFileSync(join(dir, '.wix/types/masterPage/masterPage.d.ts'),
     'type MasterPageElementsMap = {\n\t"#header1": $w.Header;\n}\n');
   writeFileSync(join(dir, '.wix/types/p0001/p0001.d.ts'),
     '/// <reference path="..\\masterPage\\masterPage.d.ts" />\n' +
     'type PageElementsMap = MasterPageElementsMap & {\n' +
-    '\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#states": $w.MultiStateBox;\n\t"#secret": $w.HiddenCollapsedElement;\n\t"#hiddenBox": $w.Box & $w.HiddenCollapsedElement;\n\t"#card": $w.Box;\n}\n');
+    '\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#states": $w.MultiStateBox;\n\t"#secret": $w.HiddenCollapsedElement;\n\t"#hiddenBox": $w.Box & $w.HiddenCollapsedElement;\n\t"#card": $w.Box;\n\t"#text1": $w.Text;\n\t"#text10": $w.Text;\n\t"#ctaBtn": $w.Button;\n}\n');
 
   // --- run generator --------------------------------------------------------
   console.log('generator:');
@@ -53,6 +53,10 @@ try {
   ok(/TRUE TYPE UNKNOWN/.test(byId['#secret']?.guidance || ''), '#secret hidden-type warning present');
   ok(byId['#hiddenBox']?.type === 'Box' && byId['#hiddenBox']?.hidden === true, 'intersection ($w.Box & Hidden) → type Box + hidden flag');
   ok(page.elements.filter(e => e.id === '#card').length === 1, 'duplicate #card deduped to one entry');
+  ok(byId['#text1']?.referencedInVelo === true, '#text1 detected as referenced');
+  ok(byId['#text10']?.referencedInVelo === false, '#text10 NOT false-matched by #text1 (anchored)');
+  ok(byId['#ctaBtn']?.referencedInVelo === true, 'editor-wired export function ctaBtn_click detected');
+  ok((byId['#ctaBtn']?.events || []).includes('click'), '#ctaBtn click event surfaced');
   ok(existsSync(join(dir, 'wix-elements.md')), 'writes wix-elements.md');
 
   // --- run scaffolder -------------------------------------------------------

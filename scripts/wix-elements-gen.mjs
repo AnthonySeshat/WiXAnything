@@ -147,10 +147,29 @@ if (existsSync(PAGES_DIR)) {
 
 // Reference scan corpus (ALL src code, not just one page — avoids false "unused").
 const corpus = collectSrcCode(join(REPO, 'src'));
-const referencedIn = (id) => {
-  const needle = id; // includes the leading '#'
-  const hits = corpus.filter(c => c.txt.includes(needle)).map(c => c.file.replace(REPO + '\\', '').replace(REPO + '/', ''));
-  return hits;
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const relPath = (f) => f.replace(REPO + '\\', '').replace(REPO + '/', ''); // path formatting hardened in a later commit
+/**
+ * Which Velo files reference an element + which events are wired.
+ * Anchored so `#text1` does NOT match `#text10`, and it detects Wix's editor-attached
+ * handlers `export function <nick>_<event>()` — which carry no `#id` string and were
+ * previously mislabelled "not in code".
+ */
+const refsOf = (id) => {
+  const en = escapeRe(id.slice(1));
+  const selRe = new RegExp('#' + en + '(?![\\w-])');                       // $w('#id') / "#id"
+  const expRe = new RegExp('export\\s+function\\s+' + en + '_(\\w+)\\s*\\(', 'g'); // editor-wired handler
+  const onRe = new RegExp('#' + en + "['\"]\\s*\\)\\s*\\.(on[A-Za-z]\\w*)\\s*\\(", 'g'); // $w('#id').onClick(
+  const files = new Set(), events = new Set();
+  for (const c of corpus) {
+    let hit = selRe.test(c.txt);
+    let m; expRe.lastIndex = 0;
+    while ((m = expRe.exec(c.txt))) { hit = true; events.add(m[1]); }
+    onRe.lastIndex = 0;
+    while ((m = onRe.exec(c.txt))) { events.add(m[1].replace(/^on/, '').toLowerCase()); }
+    if (hit) files.add(relPath(c.file));
+  }
+  return { referencedIn: [...files], events: [...events] };
 };
 
 // ----- parse master + pages -------------------------------------------------
@@ -173,7 +192,7 @@ const viz = (id) => {
 const masterDts = readIfExists(join(TYPES_DIR, 'masterPage', 'masterPage.d.ts'));
 const masterEls = parseElementsMap(masterDts).map(e => ({
   ...e,
-  referencedIn: referencedIn(e.id),
+  ...refsOf(e.id),
   guidance: guidance(e.type),
   layout: viz(e.id),
 }));
@@ -185,7 +204,7 @@ for (const entry of readdirSync(TYPES_DIR)) {
   if (!dts) continue;
   const els = parseElementsMap(dts).map(e => ({
     ...e,
-    referencedIn: referencedIn(e.id),
+    ...refsOf(e.id),
     guidance: guidance(e.type),
     layout: viz(e.id),
   }));
@@ -218,10 +237,10 @@ const json = {
   generatedAt,
   site: { siteId: site.siteId ?? null, uiVersion: site.uiVersion ?? null },
   stats,
-  global: masterEls.map(({ id, type, hidden, referencedIn, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, guidance, layout })),
+  global: masterEls.map(({ id, type, hidden, referencedIn, events, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, events, guidance, layout })),
   pages: pages.map(p => ({
     pageId: p.pageId, name: p.name, file: p.file, elementCount: p.elementCount,
-    elements: p.elements.map(({ id, type, hidden, referencedIn, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, guidance, layout })),
+    elements: p.elements.map(({ id, type, hidden, referencedIn, events, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, events, guidance, layout })),
   })),
 };
 // ----- diff vs previous (the L0 mutation oracle) ----------------------------
@@ -260,7 +279,8 @@ writeFileSync(join(OUT, 'wix-elements.json'), JSON.stringify(json, null, 2));
 // ----- write Markdown -------------------------------------------------------
 function table(els) {
   const rows = els.map(e => {
-    const flag = e.hidden ? '🙈 hidden' : (e.referencedIn.length ? '· in code' : '·');
+    const ev = e.events && e.events.length ? ` ⚡${e.events.join('/')}` : '';
+    const flag = (e.hidden ? '🙈 hidden' : (e.referencedIn.length ? '· in code' : '·')) + ev;
     const lay = e.layout && e.layout.box ? `${e.layout.box.x},${e.layout.box.y} · ${e.layout.box.w}×${e.layout.box.h}` : '·';
     return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${lay} | ${e.guidance.replace(/\|/g, '\\|')} |`;
   });
