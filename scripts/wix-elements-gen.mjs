@@ -197,13 +197,41 @@ const viz = (id) => {
   };
 };
 
+// Recover the true type of a HiddenCollapsedElement: (a) from Velo accessor usage,
+// (b) from the rendered DOM tag the scanner records — removes a class of guessing.
+function recoverHiddenType(id) {
+  const en = escapeRe(id.slice(1));
+  const accRe = new RegExp("\\$w\\(\\s*['\"]#" + en + "['\"]\\s*\\)\\s*\\.([a-zA-Z]\\w*)", 'g');
+  const ACC = [[/^(changeState|currentState)$/, 'MultiStateBox'], [/^label$/, 'Button'],
+    [/^(text|html)$/, 'Text'], [/^src$/, 'Image'], [/^(data|onItemReady|forEachItem)$/, 'Repeater'],
+    [/^value$/, 'TextInput'], [/^checked$/, 'Checkbox']];
+  for (const c of corpus) {
+    let m; accRe.lastIndex = 0;
+    while ((m = accRe.exec(c.txt))) for (const [pat, t] of ACC) if (pat.test(m[1])) return { type: t, via: 'velo .' + m[1] };
+  }
+  const v = visualMap[id.slice(1)];
+  const TAG = { img: 'Image', button: 'Button', a: 'Button', input: 'TextInput', textarea: 'TextBox', h1: 'Text', h2: 'Text', h3: 'Text', p: 'Text', span: 'Text' };
+  if (v && v.tag && TAG[v.tag]) return { type: TAG[v.tag], via: 'rendered <' + v.tag + '>' };
+  return null;
+}
+
+// Enrich a parsed element with references, events, layout, and (for hidden ones) a recovered type.
+function enrich(e) {
+  const out = { ...e, ...refsOf(e.id), layout: viz(e.id) };
+  if (e.hidden) {
+    const rec = recoverHiddenType(e.id);
+    out.recoveredType = rec ? rec.type : null;
+    out.guidance = rec
+      ? `Hidden/collapsed — likely $w.${rec.type} (${rec.via}). .show()/.expand() first, then use the ${rec.type} API.`
+      : guidance('HiddenCollapsedElement');
+  } else {
+    out.guidance = guidance(e.type);
+  }
+  return out;
+}
+
 const masterDts = readIfExists(join(TYPES_DIR, 'masterPage', 'masterPage.d.ts'));
-const masterEls = parseElementsMap(masterDts).map(e => ({
-  ...e,
-  ...refsOf(e.id),
-  guidance: guidance(e.type),
-  layout: viz(e.id),
-}));
+const masterEls = parseElementsMap(masterDts).map(enrich);
 if (masterDts && /\$w\./.test(masterDts) && masterEls.length === 0) parseWarnings.push('masterPage.d.ts has $w types but parsed 0 elements');
 
 const pages = [];
@@ -211,12 +239,7 @@ for (const entry of readdirSync(TYPES_DIR)) {
   if (['wix-code-types', 'backend', 'public', 'masterPage'].includes(entry)) continue;
   const dts = readIfExists(join(TYPES_DIR, entry, `${entry}.d.ts`));
   if (!dts) continue;
-  const els = parseElementsMap(dts).map(e => ({
-    ...e,
-    ...refsOf(e.id),
-    guidance: guidance(e.type),
-    layout: viz(e.id),
-  }));
+  const els = parseElementsMap(dts).map(enrich);
   if (/\$w\./.test(dts) && els.length === 0) parseWarnings.push(`${entry}/${entry}.d.ts has $w types but parsed 0 elements`);
   const meta = pageMeta[entry] || { name: entry, file: null };
   pages.push({ pageId: entry, name: meta.name, file: meta.file, elementCount: els.length, elements: els });
@@ -247,10 +270,10 @@ const json = {
   generatedAt,
   site: { siteId: site.siteId ?? null, uiVersion: site.uiVersion ?? null },
   stats,
-  global: masterEls.map(({ id, type, hidden, referencedIn, events, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, events, guidance, layout })),
+  global: masterEls.map(({ id, type, hidden, recoveredType, referencedIn, events, guidance, layout }) => ({ id, type, hidden, recoveredType, referencedInVelo: referencedIn.length > 0, referencedIn, events, guidance, layout })),
   pages: pages.map(p => ({
     pageId: p.pageId, name: p.name, file: p.file, elementCount: p.elementCount,
-    elements: p.elements.map(({ id, type, hidden, referencedIn, events, guidance, layout }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, events, guidance, layout })),
+    elements: p.elements.map(({ id, type, hidden, recoveredType, referencedIn, events, guidance, layout }) => ({ id, type, hidden, recoveredType, referencedInVelo: referencedIn.length > 0, referencedIn, events, guidance, layout })),
   })),
 };
 // ----- diff vs previous (the L0 mutation oracle) ----------------------------
@@ -298,7 +321,8 @@ function table(els) {
     const ev = e.events && e.events.length ? ` ⚡${e.events.join('/')}` : '';
     const flag = (e.hidden ? '🙈 hidden' : (e.referencedIn.length ? '· in code' : '·')) + ev;
     const lay = e.layout && e.layout.box ? `${e.layout.box.x},${e.layout.box.y} · ${e.layout.box.w}×${e.layout.box.h}` : '·';
-    return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${lay} | ${content(e).replace(/\|/g, '\\|')} |`;
+    const typeCell = e.recoveredType ? `${e.type}→${e.recoveredType}` : e.type;
+    return `| \`${e.id}\` | \`${typeCell}\` | ${flag} | ${lay} | ${content(e).replace(/\|/g, '\\|')} |`;
   });
   return ['| ID | Type | State | Layout | Content / children |',
           '|----|------|-------|--------|--------------------|', ...rows].join('\n');

@@ -125,7 +125,7 @@ const byNick = {};
 for (const [cid, nick] of Object.entries(comp2nick)) {
   const v = acc[cid];
   byNick[nick] = v
-    ? { compId: cid, rendered: true, box: v.box, text: v.text, style: v.style, parentNickname: v.parentComp ? (comp2nick[v.parentComp] || null) : null }
+    ? { compId: cid, rendered: true, tag: v.tag, box: v.box, text: v.text, style: v.style, parentNickname: v.parentComp ? (comp2nick[v.parentComp] || null) : null }
     : { compId: cid, rendered: false };
 }
 const renderedCount = Object.values(byNick).filter(v => v.rendered).length;
