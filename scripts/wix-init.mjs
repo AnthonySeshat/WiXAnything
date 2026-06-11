@@ -66,7 +66,7 @@ if (!looksWix && !FORCE) {
 
 // ---- 1. scripts + templates ------------------------------------------------
 say('1) scripts + templates');
-for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs', 'wix-build-element.mjs'])
+for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs', 'wix-build-element.mjs', 'wix-full.mjs'])
   copy(join(ADDON, 'scripts', f), join('scripts', f));
 copyTree(join(ADDON, 'templates'), join('scripts', 'wix-addon-templates'));
 
@@ -115,6 +115,7 @@ if (!existsSync(pkgPath)) {
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
   pkg.scripts ??= {};
   const set = (k, v) => { if (pkg.scripts[k] !== v) { say(`  · scripts.${k} = ${v}`); pkg.scripts[k] = v; } };
+  set('wix:full', 'node scripts/wix-full.mjs');                  // map + layout/styles in one go (pass -- --url "...")
   set('wix:elements', 'node scripts/wix-doctor.mjs');            // sync + regenerate (everyday)
   set('wix:elements:fast', 'node scripts/wix-elements-gen.mjs'); // regenerate from cache, no sync
   set('wix:diff', 'node scripts/wix-elements-gen.mjs --diff');   // regenerate + show added/removed/retyped ids
