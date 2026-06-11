@@ -68,7 +68,9 @@ if (!looksWix && !FORCE) {
 say('1) scripts + templates');
 for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs', 'wix-build-element.mjs', 'wix-full.mjs', 'wix-check.mjs', 'wix-lint.mjs'])
   copy(join(ADDON, 'scripts', f), join('scripts', f));
-copy(join(ADDON, '.githooks', 'pre-commit'), join('.githooks', 'pre-commit')); // staleness + .env guard (opt-in)
+const hookSrc = join(ADDON, '.githooks', 'pre-commit'); // staleness + .env guard (opt-in)
+if (existsSync(hookSrc)) copy(hookSrc, join('.githooks', 'pre-commit'));
+else say('  · (pre-commit hook not in this package build — skipping)');
 copyTree(join(ADDON, 'templates'), join('scripts', 'wix-addon-templates'));
 
 // ---- 2. docs ---------------------------------------------------------------

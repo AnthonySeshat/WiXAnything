@@ -175,6 +175,19 @@ try {
   ok(b.status === 0, 'exits 0 on a no-imports component');
   ok(existsSync(join(dir, 'out.js')), 'produces a single output file');
   ok(node(['--check', join(__dirname, '..', 'examples', 'bridge', 'quote-configurator.js')]).status === 0, 'bridge reference component is valid JS');
+
+  // --- npm package ships every file the installer copies --------------------
+  console.log('npm package contents:');
+  const pk = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: join(__dirname, '..'), shell: true, encoding: 'utf8' });
+  let packed = [];
+  try { packed = (JSON.parse(pk.stdout)[0].files || []).map(f => f.path.replace(/\\/g, '/')); } catch {}
+  if (packed.length) {
+    for (const need of ['.githooks/pre-commit', 'assets/CLAUDE.md', 'assets/AGENTS.md', 'assets/claude-settings.json', 'visual/scan.mjs', 'scripts/wix-init.mjs', 'scripts/wix-full.mjs', 'templates/custom-element/element.js'])
+      ok(packed.includes(need), `npm package ships ${need} (installer copies it)`);
+    ok(!packed.some(p => p.includes('node_modules')), 'npm package excludes node_modules');
+  } else {
+    console.log('  (could not parse `npm pack --dry-run --json` — skipping packaging check)');
+  }
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

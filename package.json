@@ -11,6 +11,7 @@
     "templates/",
     "assets/",
     "docs/",
+    ".githooks/",
     "visual/scan.mjs",
     "visual/package.json",
     "visual/README.md",
