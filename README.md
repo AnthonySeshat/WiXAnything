@@ -45,6 +45,10 @@ Before:  Claude can't see elements → guesses IDs/types → broken Velo, back-a
 After:   Claude reads wix-elements.md → every ID + type + layout + how to set it → it just works
 ```
 
+**Measured:** in a 10-task Velo benchmark (same model, only difference = the map), Claude went
+from **2/10 correct (blind) → 10/10 (sighted)**, with element-ID hallucinations **7 → 0**.
+→ [`docs/BENCHMARK.md`](docs/BENCHMARK.md)
+
 ---
 
 ## How it compares
