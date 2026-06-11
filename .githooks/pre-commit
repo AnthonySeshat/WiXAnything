@@ -1,0 +1,15 @@
+#!/bin/sh
+# Refuse to commit any real .env file (allow .env.example). Defense-in-depth so a
+# secret can never be committed even if .gitignore is edited or -f is used.
+# Enable once per clone:  git config core.hooksPath .githooks
+
+blocked=$(git diff --cached --name-only | grep -E '(^|/)\.env($|\.)' | grep -vE '\.env\.example$')
+
+if [ -n "$blocked" ]; then
+  echo "✖ Commit blocked — these look like real env files (possible secrets):"
+  echo "$blocked" | sed 's/^/    - /'
+  echo "  They are gitignored for a reason. Put structure in .env.example instead."
+  echo "  (If you REALLY mean it: git commit --no-verify — not recommended.)"
+  exit 1
+fi
+exit 0

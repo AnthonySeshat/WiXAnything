@@ -1,16 +1,19 @@
+# ── secrets / env (NEVER commit real env files) ──────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── deps / build ─────────────────────────────────────────────────────────────
 node_modules/
 *.log
 .DS_Store
-.env
-.env.local
-
-# Headless build artifacts / deps
 headless/node_modules/
 headless/dist/
 headless/.astro/
-headless/.env
 
-# Local-only: real generated maps from private sites (never publish a real siteId/elements)
+# ── local-only generated maps (don't publish a real siteId / element names) ──
 examples/ottop/
 /wix-elements.json
 /wix-elements.md
