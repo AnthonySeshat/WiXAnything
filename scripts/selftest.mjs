@@ -9,7 +9,7 @@
  *   - scaffolded custom element is valid JS and registers the right tag
  * Exit 0 = pass, 1 = fail.
  */
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync, utimesSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -87,11 +87,11 @@ try {
 
   // --- staleness guard ------------------------------------------------------
   console.log('staleness guard:');
-  node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', dir, '--quiet']); // fresh map
-  ok(node([join(__dirname, 'wix-check.mjs'), '--repo', dir]).status === 0, 'fresh map → wix-check passes');
-  const future = new Date(Date.now() + 20000);
-  utimesSync(join(dir, '.wix/types/p0001/p0001.d.ts'), future, future); // make types newer than the map
-  ok(node([join(__dirname, 'wix-check.mjs'), '--repo', dir]).status !== 0, 'stale map (.wix/types newer) → wix-check flags it');
+  node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', dir, '--quiet']); // fresh map (stamps inputsHash)
+  ok(node([join(__dirname, 'wix-check.mjs'), '--repo', dir]).status === 0, 'fresh map → wix-check passes (hash matches)');
+  const dtsPath = join(dir, '.wix/types/p0001/p0001.d.ts');
+  writeFileSync(dtsPath, readFileSync(dtsPath, 'utf8') + '\n// content changed after generation\n'); // change source content
+  ok(node([join(__dirname, 'wix-check.mjs'), '--repo', dir]).status !== 0, 'changed .wix/types content → wix-check flags stale (hash mismatch)');
 
   // --- run scaffolder -------------------------------------------------------
   console.log('scaffolder:');
