@@ -8,9 +8,6 @@
 # ── private / local-only (kept on disk, never pushed) ────────────────────────
 PARTNERSHIP-PITCH.md
 docs/media/
-# CI workflow is authored but the gh OAuth token lacks the 'workflow' scope to push it.
-# To enable CI: `gh auth refresh -s workflow` then `git add -f .github/workflows/ci.yml`.
-.github/workflows/ci.yml
 
 # ── deps / build ─────────────────────────────────────────────────────────────
 node_modules/
