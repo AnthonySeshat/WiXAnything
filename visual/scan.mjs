@@ -15,6 +15,7 @@
  */
 import { chromium } from 'playwright';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { buildComp2Nick, joinByNick, isAdvanceCandidateSafe } from './lib.mjs';
 
 const argv = process.argv.slice(2);
 const arg = (n, d) => { const i = argv.indexOf(n); return i !== -1 && argv[i + 1] ? argv[i + 1] : d; };
@@ -49,25 +50,8 @@ page.on('response', async (res) => {
 console.log('loading', URL);
 try { await page.goto(URL, { waitUntil: 'networkidle', timeout: 90000 }); } catch (e) { console.log('goto note:', e.message); }
 
-// nickname maps from the page model — hardened against whitespace, key order, and
-// structural keys that also point at comp-ids (parent/id/type/… are NOT nicknames).
-const comp2nick = {};
-const STRUCTURAL = new Set(['compId', 'role', 'id', 'type', 'parent', 'dataQuery', 'propertyQuery',
-  'designQuery', 'behaviorQuery', 'connectionQuery', 'styleId', 'skin', 'componentType', 'metaData', 'layout', 'props', 'mobileStructure']);
-// (1) connection records {"compId":"comp-x","role":"<nick>"} in EITHER order, whitespace-tolerant
-const connA = /"compId"\s*:\s*"(comp-[a-z0-9]+)"[^}]*?"role"\s*:\s*"([A-Za-z][\w-]*)"/g;
-const connB = /"role"\s*:\s*"([A-Za-z][\w-]*)"[^}]*?"compId"\s*:\s*"(comp-[a-z0-9]+)"/g;
-for (const b of blobs) {
-  let m;
-  connA.lastIndex = 0; while ((m = connA.exec(b))) comp2nick[m[1]] = m[2];
-  connB.lastIndex = 0; while ((m = connB.exec(b))) comp2nick[m[2]] = m[1];
-}
-// (2) fallback flat map "<nick>":"comp-x" — skip structural keys so junk isn't treated as a nickname
-const flat = /"([A-Za-z][\w-]*)"\s*:\s*"(comp-[a-z0-9]+)"/g;
-for (const b of blobs) {
-  let m; flat.lastIndex = 0;
-  while ((m = flat.exec(b))) { if (!STRUCTURAL.has(m[1]) && !comp2nick[m[2]]) comp2nick[m[2]] = m[1]; }
-}
+// nickname map from the page model (pure logic lives in lib.mjs, tested offline)
+const comp2nick = buildComp2Nick(blobs);
 const compIds = Object.keys(comp2nick);
 const nick2comp = {}; for (const [c, n] of Object.entries(comp2nick)) if (!nick2comp[n]) nick2comp[n] = c;
 console.log(`mapped ${compIds.length} nicknames from the page model`);
@@ -117,14 +101,12 @@ if (FULL) {
     return null;
   }
   // SAFETY: this drives a LIVE published site. By default we only click step-NAVIGATION
-  // controls and NEVER submit/checkout-like buttons (which could create a lead/booking/
-  // order). Pass --allow-submit to opt in (at your own risk).
-  const DANGER = /submit|checkout|pay|buy|book|order|delete|remove|confirm|finish|send/i;
+  // controls and NEVER submit/checkout-like buttons (isAdvanceCandidateSafe, tested in lib).
   async function clickAdvance() {
     const candidates = ['nextBtn1', 'nextBtn2', 'nextBtn3', 'nextBtn4'];
     if (ALLOW_SUBMIT) candidates.push('submitBtn');
     for (const n of candidates) {
-      if (!ALLOW_SUBMIT && DANGER.test(n)) continue; // never click submit/checkout-like controls by default
+      if (!isAdvanceCandidateSafe(n, ALLOW_SUBMIT)) continue; // never click submit/checkout-like controls by default
       const cid = nick2comp[n]; if (!cid) continue;
       if (!(await isVisible(cid))) continue;
       try { await page.locator('#' + cid).first().click({ timeout: 2500, force: true }); return n; } catch {}
@@ -146,14 +128,8 @@ if (FULL) {
   }
 }
 
-// join -> nickname-keyed
-const byNick = {};
-for (const [cid, nick] of Object.entries(comp2nick)) {
-  const v = acc[cid];
-  byNick[nick] = v
-    ? { compId: cid, rendered: true, tag: v.tag, box: v.box, text: v.text, style: v.style, parentNickname: v.parentComp ? (comp2nick[v.parentComp] || null) : null }
-    : { compId: cid, rendered: false };
-}
+// join -> nickname-keyed (pure logic in lib.mjs)
+const byNick = joinByNick(comp2nick, acc);
 const renderedCount = Object.values(byNick).filter(v => v.rendered).length;
 writeFileSync(OUT, JSON.stringify({ url: URL, full: FULL, scrapedViewport: { w: 1440, h: 1024 }, counts: { mapped: compIds.length, rendered: renderedCount }, elements: byNick }, null, 2));
 console.log(`\n✓ coverage: ${renderedCount}/${compIds.length} nicknames with geometry → wrote ${OUT}`);

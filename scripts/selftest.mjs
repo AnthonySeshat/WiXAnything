@@ -14,6 +14,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import * as vlib from '../visual/lib.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -92,6 +93,26 @@ try {
   const dtsPath = join(dir, '.wix/types/p0001/p0001.d.ts');
   writeFileSync(dtsPath, readFileSync(dtsPath, 'utf8') + '\n// content changed after generation\n'); // change source content
   ok(node([join(__dirname, 'wix-check.mjs'), '--repo', dir]).status !== 0, 'changed .wix/types content → wix-check flags stale (hash mismatch)');
+
+  // --- visual/lib.mjs pure logic (offline — the formerly-untested scan internals) -
+  console.log('visual lib:');
+  const c2n = vlib.buildComp2Nick([
+    '{"compId":"comp-aaa","role":"heroTitle"}',                // canonical order
+    '{"role":"ctaButton","compId":"comp-bbb"}',                // reversed key order
+    '{ "compId" : "comp-ccc" , "x":1, "role" : "box1" }',      // whitespace + extra field between
+    '{"parent":"comp-zzz","type":"comp-yyy","id":"comp-www"}', // structural keys → NOT nicknames
+    '{"styleRepeater":"comp-ddd"}',                            // flat fallback
+  ]);
+  ok(c2n['comp-aaa'] === 'heroTitle', 'buildComp2Nick: canonical {compId,role}');
+  ok(c2n['comp-bbb'] === 'ctaButton', 'buildComp2Nick: reversed key order');
+  ok(c2n['comp-ccc'] === 'box1', 'buildComp2Nick: whitespace + extra field tolerated');
+  ok(c2n['comp-ddd'] === 'styleRepeater', 'buildComp2Nick: flat fallback');
+  ok(!c2n['comp-zzz'] && !c2n['comp-yyy'] && !c2n['comp-www'], 'buildComp2Nick: structural keys (parent/type/id) not treated as nicknames');
+  ok(vlib.isAdvanceCandidateSafe('nextBtn1') && !vlib.isAdvanceCandidateSafe('submitBtn'), 'safe-click: nav allowed, submit blocked by default');
+  ok(vlib.isAdvanceCandidateSafe('submitBtn', true), 'safe-click: submit allowed only with --allow-submit');
+  const jb = vlib.joinByNick({ 'comp-a': 'title', 'comp-b': 'card' }, { 'comp-a': { tag: 'p', box: { x: 0 }, text: 'hi', style: {}, parentComp: 'comp-b' } });
+  ok(jb.title.rendered === true && jb.title.parentNickname === 'card', 'joinByNick: resolves parentComp → parentNickname');
+  ok(jb.card.rendered === false, 'joinByNick: unscanned comp marked rendered:false');
 
   // --- run scaffolder -------------------------------------------------------
   console.log('scaffolder:');
