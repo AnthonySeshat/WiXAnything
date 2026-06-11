@@ -5,6 +5,9 @@
 *.pem
 *.key
 
+# ── private / local-only (kept on disk, never pushed) ────────────────────────
+PARTNERSHIP-PITCH.md
+
 # ── deps / build ─────────────────────────────────────────────────────────────
 node_modules/
 *.log
