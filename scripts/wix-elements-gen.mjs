@@ -298,10 +298,10 @@ function table(els) {
     const ev = e.events && e.events.length ? ` ⚡${e.events.join('/')}` : '';
     const flag = (e.hidden ? '🙈 hidden' : (e.referencedIn.length ? '· in code' : '·')) + ev;
     const lay = e.layout && e.layout.box ? `${e.layout.box.x},${e.layout.box.y} · ${e.layout.box.w}×${e.layout.box.h}` : '·';
-    return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${lay} | ${content(e).replace(/\|/g, '\\|')} | ${e.guidance.replace(/\|/g, '\\|')} |`;
+    return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${lay} | ${content(e).replace(/\|/g, '\\|')} |`;
   });
-  return ['| ID | Type | State | Layout | Content / children | How to set it (Velo) |',
-          '|----|------|-------|--------|--------------------|----------------------|', ...rows].join('\n');
+  return ['| ID | Type | State | Layout | Content / children |',
+          '|----|------|-------|--------|--------------------|', ...rows].join('\n');
 }
 
 let md = '';
@@ -315,6 +315,10 @@ md += `- When a **visual scan** has been merged, rows show **Layout** (x,y · w�
 md += `- **\`HiddenCollapsedElement\` (🙈) masks the real type.** A hidden Text, Box, or MultiStateBox all show as \`HiddenCollapsedElement\`. \`.expand()\`/\`.show()\` it first; confirm the real type in the editor before using \`.text\`/\`.label\`.\n`;
 md += `- **"in code" just means some Velo file references the id.** On editor-built sites most elements are NOT referenced in code — that is normal, **not** "unused".\n`;
 md += `- A **\`Box\`/\`MultiStateBox\` has NO \`.text\`.** Calling \`.text\` on a container is the classic bug — set the **child** Text elements shown in its **Content / children** column, or use \`.changeState()\` for a MultiStateBox.\n\n`;
+md += `## How to set each type (legend — look up a row's **Type** here)\n\n`;
+md += `| Type | How to set it (Velo) |\n|------|----------------------|\n`;
+for (const t of stats.types) md += `| \`${t}\` | ${guidance(t).replace(/\|/g, '\\|')} |\n`;
+md += `\n`;
 md += `## 🌐 Global elements (header / footer / menus — addressable on EVERY page)\n\n`;
 md += table(masterEls) + '\n\n';
 for (const p of pages) {

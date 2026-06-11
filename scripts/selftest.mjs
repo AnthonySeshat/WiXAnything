@@ -58,6 +58,7 @@ try {
   ok(byId['#ctaBtn']?.referencedInVelo === true, 'editor-wired export function ctaBtn_click detected');
   ok((byId['#ctaBtn']?.events || []).includes('click'), '#ctaBtn click event surfaced');
   ok(existsSync(join(dir, 'wix-elements.md')), 'writes wix-elements.md');
+  ok(/How to set each type/.test(readFileSync(join(dir, 'wix-elements.md'), 'utf8')), 'md emits a deduped guidance legend');
 
   // --- visual merge: nesting tree + text passthrough (the north star) -------
   console.log('visual merge:');
