@@ -129,12 +129,16 @@ if (!existsSync(pkgPath)) {
   set('wix:app', 'node scripts/wix-app-scaffold.mjs');           // L2: companion app (widget + editor panel)
   const prev = pkg.scripts.postinstall;
   const want = 'node scripts/wix-doctor.mjs --soft';
-  if (prev && !prev.includes('wix-doctor')) {
+  // The doctor runs `wix sync-types` itself (non-fatal + CI-guarded), so replace a raw
+  // `wix sync-types` postinstall (which hard-fails npm install without the CLI / in CI)
+  // rather than chaining it. Preserve a genuinely different existing hook.
+  if (!prev || /wix\s+sync-types/.test(prev) || prev.includes('wix-doctor')) {
+    if (prev && prev !== want) say(`  · postinstall = ${want}  (replaced: ${prev} — doctor syncs non-fatally + skips in CI)`);
+    else say(`  · postinstall = ${want}`);
+    pkg.scripts.postinstall = want;
+  } else {
     say(`  · preserving existing postinstall, chaining ours (was: ${prev})`);
     pkg.scripts.postinstall = `${prev} && ${want}`;
-  } else if (!prev) {
-    say(`  · postinstall = ${want}`);
-    pkg.scripts.postinstall = want;
   }
   if (!DRY) writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
 }

@@ -63,7 +63,9 @@ if (loggedIn) {
 }
 
 // 2) sync types (non-fatal) --------------------------------------------------
-if (loggedIn && !NO_SYNC) {
+if (process.env.CI) {
+  console.log('• CI detected — skipping network sync; using cached .wix/types if present');
+} else if (loggedIn && !NO_SYNC) {
   process.stdout.write('… wix sync-types (pulling latest element maps) ');
   const sync = wix(['sync-types']);
   if (sync.status === 0) console.log('✓');
