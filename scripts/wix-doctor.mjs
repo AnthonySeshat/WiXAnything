@@ -41,6 +41,14 @@ function wix(args) {
 
 console.log(`\n🩺 wix-doctor  (repo: ${REPO})`);
 
+// 0) preflight: is the Wix CLI installed? ------------------------------------
+const ver = wix(['-v']);
+if (!/\d+\.\d+\.\d+/.test(`${ver.stdout || ''}${ver.stderr || ''}`)) {
+  console.log('✗ Wix CLI not found. Install it:  npm i -g @wix/cli');
+  console.log('  (then `wix login`, and re-run)');
+  exit(3);
+}
+
 // 1) auth gate ---------------------------------------------------------------
 const who = wix(['whoami']);
 const whoOut = `${who.stdout || ''}${who.stderr || ''}`;
