@@ -19,6 +19,8 @@ npm run wix:elements      # wix sync-types + regenerate the map
 
 Run that **after any change in the editor** (added an element, renamed an ID, etc.).
 `wix sync-types` pulls the latest from Wix's servers; it does **not** need `wix dev` running.
+Use `npm run wix:diff` to see exactly which ids were **added / removed / retyped** since the
+last sync (note: move/resize/restyle don't change ids, so they won't show — confirm visually).
 
 ## 2. Hard rules of Velo `$w` (these prevent the common bugs)
 
@@ -56,7 +58,12 @@ hosting it inside a container the user places **once**:
 - **HtmlComponent** (iframe) — full HTML/CSS/JS, bridged by `postMessage`.
 - **Repeater** — for data-driven lists into an existing item template.
 
-See `docs/wix-addon/STRUCTURAL-EDITING.md` for what's possible vs. not, and
+- **Companion app** (`npm run wix:app "<Name>"`) — a private Wix app that auto-places a
+  code-owned widget on the homepage at install and gives you an in-editor panel (real
+  `@wix/editor` SDK) to configure it. Supported, but needs the editor open + a human install.
+
+See `docs/wix-addon/STRUCTURAL-EDITING.md` for the full L0–L4 ladder of what's possible vs.
+not (incl. the unsupported, account-risk L3 and the Headless L4 rebuild), and
 `docs/wix-addon/HOSTS.md` for the one-time editor wiring each host needs.
 
 ## 5. Publish loop

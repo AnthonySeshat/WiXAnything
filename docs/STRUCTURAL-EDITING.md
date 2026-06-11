@@ -1,56 +1,70 @@
 # What Claude can and cannot do to a Wix site (the honest ceiling)
 
-Researched against a real Wix CLI repo + Wix docs. This is the straight story so you
-don't waste time on dead ends.
+Researched against a real Wix CLI repo, the live `@wix/editor` SDK (v1.566.0), and Wix
+docs. This is the straight story — graded by how achievable each thing actually is.
 
-## ✅ Fully works (code only)
+## TL;DR
 
-- **See every element + type** — `wix-elements.md` (the addon). Solves "Claude is blind".
-- **Change content & behavior of existing elements** — `.text`, `.src`, `.label`,
-  `.link`, `.show()/.hide()/.collapse()/.expand()`, `.background`, event handlers,
-  `.changeState()`, styles via `.style`, etc.
-- **Drive data into existing structures** — Repeaters (`.data`), datasets (`wix-data`,
-  `wix-dataset`), dynamic pages.
-- **Own entire NEW sections in code** — via a **Custom Element** or **HtmlComponent**
-  you place once (see below). Their internals are 100% code; the editor never touches them.
-- **Backend & integration code** — `src/backend/*.web.js`, public modules, API calls.
+> A fully-supported, **headless** tool that adds / moves / reorders / restyles **native
+> Studio elements** by code **does not exist.** No public Wix API (`$w`, `@wix/editor`,
+> companion-app extensions, REST) can create, move, resize, reorder, or delete a native
+> canvas element. That machinery lives only in Wix's internal `@wix/platform-editor-sdk`
+> (not on public npm) + private document-services, injected only into the live editor.
 
-## ⚠️ Possible, but needs ONE manual editor step
+But "everything" is reachable in **layers**:
 
-- **Adding a new code-owned section.** `$w` cannot create elements, so to introduce
-  *new* UI you (or the user) place a single host in the editor **once**:
-  a Custom Element, an HtmlComponent, or a Repeater with an item template. After that
-  one placement, everything inside is pure code. Use `npm run wix:scaffold`.
-- **Getting a brand-new native element's ID.** If you need a real native Text/Box/etc.,
-  the user adds it + sets its ID in the Local Editor, then runs `npm run wix:elements`
-  and it appears in the map. (This is the loop you were doing manually — the addon just
-  makes the result visible and typed.)
+| Layer | What it does | Feasibility | Risk |
+|------|--------------|-------------|------|
+| **L0** Element map + `--diff` | See every id→type; detect **added/removed/retyped** ids (NOT move/restyle) | ✅ proven | none |
+| **L1** Code-owned regions | **Unlimited** add/move/resize/restyle **inside** custom-element / HTML regions | ✅ proven | none |
+| **L2** Companion app | Auto-place a widget on the homepage at install; read selection; fully drive the app's **own** widget (props/preset); edit selected element text/image | 🟢 supported, **app-only, editor open + human** | none |
+| **L3** Local-Editor automation | The *only* path to true native add/move on the **existing** site (Playwright → internal API) | 🟠 speculative | ⚠️ ToS / account-ban |
+| **L4** Headless | **Total** structural freedom — pages become your Astro/React code | 🟢 supported | none, but it's a **rebuild** |
 
-## ❌ Not possible (no supported path, as of this research)
+## ✅ L0 + L1 — works today, code-only, zero risk
 
-- **Programmatically creating / moving / deleting native canvas elements, or assigning
-  IDs, from code.** The editor's visual element tree is a proprietary server-side
-  "document model" with **no public read/write API**. `$w` and the Editor SDK only
-  change *properties* of already-placed elements, not structure.
-- **Reading element geometry / parent-child / layout from the repo.** The local maps are
-  `id → type` only. For layout, use the Local Editor or a screenshot.
-- **Using an MCP to see or edit elements.** No Wix MCP exposes the element tree, IDs, or
-  Velo (see `MCP-SETUP.md`). MCP is for CMS/CRM/business data only.
+- **See & correctly target every element** (`wix-elements.md`), and a `--diff` that catches
+  structural add/remove/retype between syncs. (Move/resize/restyle change no id/type, so
+  they're invisible to the diff — confirm those with a screenshot.)
+- **Change content/behavior of existing elements** — `.text`, `.src`, `.label`, `.link`,
+  `.show()/.hide()/.collapse()/.expand()`, `.background`, events, `.changeState()`.
+- **Own entire NEW sections in code** — Custom Element / HtmlComponent / Repeater
+  (`npm run wix:scaffold`). One manual placement per host, pure code thereafter.
 
-## The realistic "complete site editing" workflow this enables
+## 🟢 L2 — the supported companion app (`npm run wix:app "<Name>"`)
 
-1. `npm run wix:doctor` → Claude can now *see* every element, correctly typed.
-2. Claude edits Velo against real IDs (no more `.text`-on-a-Box mistakes).
-3. For new UI, `npm run wix:scaffold custom-element <name>` → place once → pure code after.
-4. For new *native* elements, user adds + IDs in editor → `npm run wix:elements` → visible.
-5. `git push` → publish.
+A private `@wix/cli` app installed on your own site (no App Market review). It:
+- **Auto-places** a code-owned Site Widget on the homepage at install
+  (`installation.staticContainer: "HOMEPAGE"`) — the one supported "appears from code" path.
+- Ships an **Editor Add-on panel** (real `@wix/editor`): `elements.getSelection()` /
+  `onSelectionChange()` to read what's selected, `widget.setProp()` / `setDesignPreset()`
+  to fully drive the app's own widget, `pages.addTemplate()` to add app pages.
+- **Honest limit:** it controls the app's **own** widget completely and can read/(content-)
+  edit the **selected** native element, but **cannot** add/move/resize/reorder/delete native
+  elements, and it only runs **with the Studio editor open** (needs the injected platform
+  context — `IncorrectEnvironment` otherwise). Not headless. See `companion-app/SETUP.md`.
 
-That covers the large majority of real site work in code. The only irreducible manual
-step is the **one-time placement** of a new element/host in the editor — a Wix platform
-limit, not an addon limit.
+## 🟠 L3 — native structural editing (opt-in frontier, unsupported)
 
-## Frontier (opt-in, unsupported — do not enable by default)
+Driving the authenticated `wix dev` Local Editor with Playwright is the only way to truly
+add/move/restyle **native** elements on the existing site. Changes **persist** (a new
+server-side UI version, bumped `wix.config.json`, re-surfaced via `wix sync-types` into
+`.wix/types`). But: the editor is heavily obfuscated, the internal `documentServices` API
+is undocumented and likely permission-gated, it **breaks on every editor release**, and it
+runs as **your** account → plausible **Wix ToS / account-ban** exposure. Not part of this
+tool by default; only ever opt-in, own-site, human-checkpointed.
 
-Driving the Local Editor with browser automation (e.g. Playwright) to drag elements and
-set IDs, then `wix sync-types`, is *technically* conceivable but brittle, version-fragile,
-and likely against Wix's ToS. Not part of this addon. Listed only for completeness.
+## 🟢 L4 — Headless (the only supported "everything", but a rebuild)
+
+`npm create @wix/new@latest headless` → pages become ordinary Astro/React code in git with
+**100% structural freedom**, reusing your existing site's data (CMS/Stores/Members) via
+`@wix/sdk` `OAuthStrategy(clientId)`; deploy via `wix deploy` or Vercel/Netlify. Cost: you
+leave the Studio editor and rebuild the frontend in code (data survives; designed pages
+don't port). Choose this when a project needs unconditional freedom.
+
+## ❌ Not possible (no supported path)
+
+- Programmatically creating/moving/deleting native canvas elements or assigning IDs from
+  **code**, headlessly, on an existing Studio site.
+- Reading element geometry / parent-child / layout from the repo (maps are id→type only).
+- Using any Wix **MCP** to see or edit elements (data/CMS only — see `MCP-SETUP.md`).

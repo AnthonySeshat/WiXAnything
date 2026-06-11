@@ -66,7 +66,7 @@ if (!looksWix && !FORCE) {
 
 // ---- 1. scripts + templates ------------------------------------------------
 say('1) scripts + templates');
-for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs'])
+for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs'])
   copy(join(ADDON, 'scripts', f), join('scripts', f));
 copyTree(join(ADDON, 'templates'), join('scripts', 'wix-addon-templates'));
 
@@ -112,8 +112,10 @@ if (!existsSync(pkgPath)) {
   const set = (k, v) => { if (pkg.scripts[k] !== v) { say(`  · scripts.${k} = ${v}`); pkg.scripts[k] = v; } };
   set('wix:elements', 'node scripts/wix-doctor.mjs');            // sync + regenerate (everyday)
   set('wix:elements:fast', 'node scripts/wix-elements-gen.mjs'); // regenerate from cache, no sync
+  set('wix:diff', 'node scripts/wix-elements-gen.mjs --diff');   // regenerate + show added/removed/retyped ids
   set('wix:doctor', 'node scripts/wix-doctor.mjs');
-  set('wix:scaffold', 'node scripts/wix-scaffold.mjs');
+  set('wix:scaffold', 'node scripts/wix-scaffold.mjs');          // Tier 2: code-owned region
+  set('wix:app', 'node scripts/wix-app-scaffold.mjs');           // L2: companion app (widget + editor panel)
   const prev = pkg.scripts.postinstall;
   const want = 'node scripts/wix-doctor.mjs --soft';
   if (prev && !prev.includes('wix-doctor')) {

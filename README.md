@@ -80,11 +80,19 @@ npm run wix:scaffold repeater model-cards            # data-driven list pattern
 Each needs **one** placement in the editor (see the generated `WIRING.md`); after that
 it's pure code.
 
-### 📄 Tier 3 — the honest ceiling
-[`docs/wix-addon/STRUCTURAL-EDITING.md`](docs/STRUCTURAL-EDITING.md) — exactly what's
-possible (a lot), what needs one manual editor step, and what no public API allows.
-[`MCP-SETUP.md`](docs/MCP-SETUP.md) — use the Wix MCP for **data** (CMS/CRM); it can't
-touch elements.
+### 🟢 L2 — the supported companion app
+```bash
+npm run wix:app "Quote Tools"   # private @wix/cli app: auto-placed widget + editor panel
+```
+Ships a code-owned Site Widget that **auto-adds to the homepage at install**, plus an
+Editor Add-on panel (real `@wix/editor` SDK) that reads the selection and fully drives the
+widget's props/preset from inside Wix Studio. Finish via `companion-app/SETUP.md`.
+
+### 📄 The honest ceiling (L0–L4)
+[`docs/wix-addon/STRUCTURAL-EDITING.md`](docs/STRUCTURAL-EDITING.md) grades exactly what's
+possible: L0/L1 (code-only, proven), L2 (supported companion app), L3 (unsupported
+Local-Editor automation — real account-ban risk), L4 (Headless — full freedom, but a
+rebuild). [`MCP-SETUP.md`](docs/MCP-SETUP.md) — Wix MCP is for **data** (CMS/CRM), not elements.
 
 ---
 
@@ -94,8 +102,10 @@ touch elements.
 |---------|------|
 | `npm run wix:elements` | `wix sync-types` + regenerate the map (everyday refresh) |
 | `npm run wix:elements:fast` | regenerate from cached `.wix/types` (no network) |
+| `npm run wix:diff` | regenerate + report which ids were **added / removed / retyped** since last sync |
 | `npm run wix:doctor` | auth check → sync → generate, with a clear status report |
-| `npm run wix:scaffold <kind> <name>` | scaffold a code-owned component |
+| `npm run wix:scaffold <kind> <name>` | scaffold a code-owned component (L1) |
+| `npm run wix:app "<App Name>"` | scaffold the supported companion app (L2): auto-placed widget + editor panel |
 
 ## How it works
 

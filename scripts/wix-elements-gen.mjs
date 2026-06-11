@@ -32,6 +32,7 @@ function arg(name, def) {
 const REPO = arg('--repo', process.cwd());
 const OUT = arg('--out', REPO);
 const QUIET = argv.includes('--quiet');
+const DIFF = argv.includes('--diff'); // compare against the previous wix-elements.json before overwriting
 const log = (...a) => { if (!QUIET) console.log(...a); };
 
 const TYPES_DIR = join(REPO, '.wix', 'types');
@@ -182,6 +183,37 @@ const json = {
     elements: p.elements.map(({ id, type, hidden, referencedIn, guidance }) => ({ id, type, hidden, referencedInVelo: referencedIn.length > 0, referencedIn, guidance })),
   })),
 };
+// ----- diff vs previous (the L0 mutation oracle) ----------------------------
+// Honest scope: detects elements ADDED / REMOVED / TYPE-CHANGED between syncs —
+// i.e. structural changes that alter the id->type map. It CANNOT see move/resize/
+// reorder/restyle or content edits (those change neither id nor type); verify
+// those with a screenshot. Read the OLD json BEFORE we overwrite it below.
+if (DIFF) {
+  const prevRaw = readIfExists(join(OUT, 'wix-elements.json'));
+  const flatten = (j) => {
+    const m = new Map();
+    if (!j) return m;
+    for (const e of (j.global || [])) m.set('global|' + e.id, e.type);
+    for (const p of (j.pages || [])) for (const e of (p.elements || [])) m.set(p.pageId + '|' + e.id, e.type);
+    return m;
+  };
+  const A = flatten(prevRaw ? JSON.parse(prevRaw) : null), B = flatten(json);
+  const added = [], removed = [], changed = [];
+  for (const [k, t] of B) { if (!A.has(k)) added.push([k, t]); else if (A.get(k) !== t) changed.push([k, A.get(k), t]); }
+  for (const [k, t] of A) if (!B.has(k)) removed.push([k, t]);
+  const pretty = (k) => { const [scope, id] = k.split('|'); return `${id} (${scope})`; };
+  log('\n── element diff vs previous sync ──');
+  if (!prevRaw) log('  (no previous wix-elements.json — this is the baseline)');
+  else if (!added.length && !removed.length && !changed.length) log('  no structural changes (ids/types identical)');
+  else {
+    for (const [k, t] of added) log(`  + ADDED    ${pretty(k)} : ${t}`);
+    for (const [k, t] of removed) log(`  - REMOVED  ${pretty(k)} : ${t}`);
+    for (const [k, o, n] of changed) log(`  ~ RETYPED  ${pretty(k)} : ${o} → ${n}`);
+    log(`  (${added.length} added, ${removed.length} removed, ${changed.length} retyped — move/resize/restyle are NOT shown here)`);
+  }
+  log('───────────────────────────────────\n');
+}
+
 writeFileSync(join(OUT, 'wix-elements.json'), JSON.stringify(json, null, 2));
 
 // ----- write Markdown -------------------------------------------------------

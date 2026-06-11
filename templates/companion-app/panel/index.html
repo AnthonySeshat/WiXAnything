@@ -1,0 +1,45 @@
+<!doctype html>
+<!--
+  __APP_NAME__ — Editor Add-on Panel (self-hosted page loaded INSIDE Wix Studio).
+  This page only works when opened by the editor (it injects the platform context);
+  opening it standalone throws "IncorrectEnvironment". During dev it's served over
+  HTTPS localhost and registered as the app's Editor Add-on panel URL in the dashboard.
+-->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>__APP_NAME__ panel</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; color: #131720; }
+      h3 { margin: 0 0 4px; } .muted { color: #5b6472; font-size: 12px; }
+      .row { margin: 14px 0; } label { display:block; font-size:12px; margin-bottom:4px; }
+      input, button { font: inherit; } input { width: 100%; padding: 8px; box-sizing: border-box; }
+      button { margin-top: 8px; padding: 8px 14px; border: 0; border-radius: 8px; background: #116dff; color: #fff; cursor: pointer; }
+      pre { background:#f3f5f9; padding:10px; border-radius:8px; font-size:11px; max-height:140px; overflow:auto; }
+    </style>
+  </head>
+  <body>
+    <h3>__APP_NAME__</h3>
+    <div class="muted">Configure the code-owned widget; inspect the current selection.</div>
+
+    <div class="row">
+      <label for="titleInput">Widget title (prop)</label>
+      <input id="titleInput" placeholder="e.g. Get a quote" />
+      <button id="setTitle">Set widget prop</button>
+    </div>
+
+    <div class="row">
+      <label for="presetInput">Design preset id</label>
+      <input id="presetInput" placeholder="e.g. variant-1" />
+      <button id="setPreset">Apply preset</button>
+    </div>
+
+    <div class="row">
+      <label>Current selection</label>
+      <pre id="selInfo">loading…</pre>
+    </div>
+
+    <script type="module" src="./panel.js"></script>
+  </body>
+</html>

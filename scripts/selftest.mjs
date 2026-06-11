@@ -62,6 +62,29 @@ try {
   const el = readFileSync(elPath, 'utf8');
   ok(el.includes("customElements.define('pricing-widget'"), 'registers <pricing-widget> tag');
   ok(node(['--check', elPath]).status === 0, 'element.js is valid JS (node --check)');
+
+  // --- L0 --diff oracle -----------------------------------------------------
+  console.log('diff oracle:');
+  // add a new element to the page map, then diff vs the baseline json from earlier
+  writeFileSync(join(dir, '.wix/types/p0001/p0001.d.ts'),
+    '/// <reference path="..\\masterPage\\masterPage.d.ts" />\n' +
+    'type PageElementsMap = MasterPageElementsMap & {\n' +
+    '\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#states": $w.MultiStateBox;\n\t"#secret": $w.HiddenCollapsedElement;\n\t"#newBtn": $w.Button;\n}\n');
+  const d = node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', dir, '--diff']);
+  ok(d.status === 0, 'exits 0');
+  ok(/\+ ADDED\s+#newBtn/.test(d.stdout || ''), 'diff reports #newBtn as ADDED');
+
+  // --- L2 companion app scaffold -------------------------------------------
+  console.log('companion app (L2):');
+  const a = node([join(__dirname, 'wix-app-scaffold.mjs'), 'Quote Tools', '--repo', dir]);
+  ok(a.status === 0, 'exits 0');
+  const widgetJs = join(dir, 'companion-app/widget/quote-tools-widget.js');
+  const panelJs = join(dir, 'companion-app/panel/panel.js');
+  ok(existsSync(widgetJs), 'creates widget element.js');
+  ok(existsSync(panelJs), 'creates editor panel.js');
+  ok(/@wix\/editor/.test(readFileSync(panelJs, 'utf8')), 'panel imports @wix/editor');
+  ok(node(['--check', widgetJs]).status === 0, 'widget js is valid JS');
+  ok(JSON.parse(readFileSync(join(dir, 'companion-app/widget/element.json'), 'utf8')).installation.staticContainer === 'HOMEPAGE', 'element.json auto-adds to HOMEPAGE');
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

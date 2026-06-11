@@ -1,0 +1,13 @@
+{
+  "id": "__WIDGET_ID__",
+  "displayName": "__APP_NAME__ Widget",
+  "tagName": "__WIDGET_TAG__",
+  "_comment": "Starting manifest for a Custom Element Site Widget. Confirm field names against the skeleton produced by `npm create @wix/app` for your @wix/cli version — the installation block is what auto-places the widget on the homepage at install (the one supported 'appears from code' path).",
+  "installation": {
+    "autoAddToSite": true,
+    "staticContainer": "HOMEPAGE"
+  },
+  "panel": {
+    "url": "https://localhost:5173/panel/index.html"
+  }
+}
