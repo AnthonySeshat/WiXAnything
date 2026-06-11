@@ -114,6 +114,13 @@ try {
   ok(jb.title.rendered === true && jb.title.parentNickname === 'card', 'joinByNick: resolves parentComp → parentNickname');
   ok(jb.card.rendered === false, 'joinByNick: unscanned comp marked rendered:false');
 
+  // --- CLAUDE.md digest block -----------------------------------------------
+  console.log('CLAUDE.md digest:');
+  writeFileSync(join(dir, 'CLAUDE.md'), '# guide\n\n<!-- WIX-ELEMENTS:START -->\nold\n<!-- WIX-ELEMENTS:END -->\n');
+  node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', dir, '--quiet']);
+  const cm = readFileSync(join(dir, 'CLAUDE.md'), 'utf8');
+  ok(/llms\.txt/.test(cm) && /Content \/ children/.test(cm), 'CLAUDE.md block filled with the rich-field digest + docs pointer');
+
   // --- run scaffolder -------------------------------------------------------
   console.log('scaffolder:');
   const s = node([join(__dirname, 'wix-scaffold.mjs'), 'custom-element', 'pricing-widget', '--repo', dir]);

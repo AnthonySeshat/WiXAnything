@@ -378,16 +378,20 @@ const claude = readIfExists(claudePath);
 if (claude) {
   const START = '<!-- WIX-ELEMENTS:START -->';
   const END = '<!-- WIX-ELEMENTS:END -->';
+  const recoveredCount = allEls.filter(e => e.recoveredType).length;
+  const withEvents = allEls.filter(e => e.events && e.events.length).length;
   const block = [
     START,
     '## Wix element map (auto-generated — do not edit between the markers)',
-    `_Generated ${generatedAt} · ${stats.pages} pages · ${stats.totalElements} elements._`,
+    `_Generated ${generatedAt} · ${stats.pages} pages · ${stats.totalElements} elements (${stats.withLayout} with layout, ${recoveredCount} recovered hidden-types, ${withEvents} with wired events)._`,
     '',
-    '- The full element inventory is in **`wix-elements.md`** (read it before targeting any element).',
-    '- `$w(\'#id\')` can only select these IDs and **cannot create** elements.',
-    '- `HiddenCollapsedElement` hides the true type — `.show()`/`.expand()` first.',
-    '- `Box`/`MultiStateBox` have **no `.text`** — set their child Text elements / use `.changeState()`.',
-    '- Refresh this map after any editor change: `npm run wix:elements` (runs `wix sync-types` + regenerates).',
+    '**Before targeting any element, read `wix-elements.md`.** Then:',
+    '- `$w(\'#id\')` can only select the listed IDs and **cannot create** elements — never invent an id.',
+    '- Pick the property by the row\'s **Type** (see the legend). A `Box`/`MultiStateBox`/`Header`/`Footer`/`Repeater` is a **container with no `.text`** — set the child elements shown in its **Content / children** column, or use `.changeState()` / `.data`.',
+    '- `HiddenCollapsedElement` rows may show a recovered type (`Type→Recovered`); `.show()`/`.expand()` first.',
+    '- Elements marked **⚡event** already have that handler wired — don\'t double-bind.',
+    '- Refresh after any editor change: `npm run wix:full -- --url "<published page>"` (or `npm run wix:elements` for types only).',
+    '- Wix docs are machine-readable: https://dev.wix.com/docs/llms.txt (or append `.md` to any docs URL).',
     END,
   ].join('\n');
   let next;
