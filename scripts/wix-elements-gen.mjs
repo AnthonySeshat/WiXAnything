@@ -34,7 +34,9 @@ const OUT = arg('--out', REPO);
 const QUIET = argv.includes('--quiet');
 const DIFF = argv.includes('--diff'); // compare against the previous wix-elements.json before overwriting
 const VISUAL = arg('--visual', null); // optional wix-visual.json (geometry/styles from a published-site scan)
+const SOFT = argv.includes('--soft'); // downgrade format-drift errors to warnings (don't exit non-zero)
 const log = (...a) => { if (!QUIET) console.log(...a); };
+const parseWarnings = []; // a non-empty .d.ts that yields 0 elements ⇒ Wix format drift ⇒ fail loud
 
 const TYPES_DIR = join(REPO, '.wix', 'types');
 const PAGES_DIR = join(REPO, 'src', 'pages');
@@ -202,6 +204,7 @@ const masterEls = parseElementsMap(masterDts).map(e => ({
   guidance: guidance(e.type),
   layout: viz(e.id),
 }));
+if (masterDts && /\$w\./.test(masterDts) && masterEls.length === 0) parseWarnings.push('masterPage.d.ts has $w types but parsed 0 elements');
 
 const pages = [];
 for (const entry of readdirSync(TYPES_DIR)) {
@@ -214,6 +217,7 @@ for (const entry of readdirSync(TYPES_DIR)) {
     guidance: guidance(e.type),
     layout: viz(e.id),
   }));
+  if (/\$w\./.test(dts) && els.length === 0) parseWarnings.push(`${entry}/${entry}.d.ts has $w types but parsed 0 elements`);
   const meta = pageMeta[entry] || { name: entry, file: null };
   pages.push({ pageId: entry, name: meta.name, file: meta.file, elementCount: els.length, elements: els });
 }
@@ -352,3 +356,15 @@ if (claude) {
 log(`[wix-elements] ${stats.pages} pages · ${stats.totalElements} elements · ${stats.hidden} hidden · ${stats.referenced} referenced`);
 log(`[wix-elements] wrote ${join(OUT, 'wix-elements.json')}`);
 log(`[wix-elements] wrote ${join(OUT, 'wix-elements.md')}`);
+
+// ----- fail-loud canary (format drift) --------------------------------------
+if (allEls.length === 0) parseWarnings.push('0 elements parsed across the whole site — the Wix .d.ts format may have changed.');
+if (parseWarnings.length) {
+  console.error('\n[wix-elements] ⚠ FORMAT-DRIFT WARNING — parsed fewer elements than expected:');
+  for (const w of parseWarnings) console.error('  - ' + w);
+  if (!SOFT) {
+    console.error('  The generated map may be incomplete. Exiting non-zero (pass --soft to override).\n');
+    process.exit(1);
+  }
+  console.error('  (--soft: continuing despite drift)\n');
+}

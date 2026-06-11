@@ -72,6 +72,15 @@ try {
   ok(bv['#title']?.layout?.text === 'Hello world', '#title text content passed through');
   ok(bv['#title']?.layout?.parentNickname === 'card', '#title parentNickname preserved');
 
+  // --- fail-loud canary on format drift -------------------------------------
+  console.log('format-drift canary:');
+  const ddir = mkdtempSync(join(tmpdir(), 'wix-drift-'));
+  mkdirSync(join(ddir, '.wix/types/d01'), { recursive: true });
+  writeFileSync(join(ddir, '.wix/types/d01/d01.d.ts'), 'type X = $w.Box;\n'); // has $w. but NO "#id" entries
+  ok(node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', ddir, '--quiet']).status !== 0, 'drift ($w types, 0 parsed) exits non-zero');
+  ok(node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', ddir, '--quiet', '--soft']).status === 0, '--soft overrides the canary');
+  rmSync(ddir, { recursive: true, force: true });
+
   // --- run scaffolder -------------------------------------------------------
   console.log('scaffolder:');
   const s = node([join(__dirname, 'wix-scaffold.mjs'), 'custom-element', 'pricing-widget', '--repo', dir]);
