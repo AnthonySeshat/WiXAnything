@@ -59,6 +59,19 @@ try {
   ok((byId['#ctaBtn']?.events || []).includes('click'), '#ctaBtn click event surfaced');
   ok(existsSync(join(dir, 'wix-elements.md')), 'writes wix-elements.md');
 
+  // --- visual merge: nesting tree + text passthrough (the north star) -------
+  console.log('visual merge:');
+  writeFileSync(join(dir, 'viz.json'), JSON.stringify({ elements: {
+    card: { compId: 'comp-1', rendered: true, box: { x: 0, y: 0, w: 200, h: 120 }, style: { display: 'flex' }, parentNickname: null },
+    title: { compId: 'comp-2', rendered: true, box: { x: 8, y: 8, w: 180, h: 24 }, style: {}, parentNickname: 'card', text: 'Hello world' },
+  } }));
+  const gv = node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', dir, '--quiet', '--visual', join(dir, 'viz.json')]);
+  ok(gv.status === 0, 'exits 0 with --visual');
+  const bv = Object.fromEntries(JSON.parse(readFileSync(join(dir, 'wix-elements.json'), 'utf8')).pages.find(p => p.pageId === 'p0001').elements.map(e => [e.id, e]));
+  ok((bv['#card']?.layout?.children || []).includes('#title'), '#card lists #title as a child (parent→children inverted)');
+  ok(bv['#title']?.layout?.text === 'Hello world', '#title text content passed through');
+  ok(bv['#title']?.layout?.parentNickname === 'card', '#title parentNickname preserved');
+
   // --- run scaffolder -------------------------------------------------------
   console.log('scaffolder:');
   const s = node([join(__dirname, 'wix-scaffold.mjs'), 'custom-element', 'pricing-widget', '--repo', dir]);

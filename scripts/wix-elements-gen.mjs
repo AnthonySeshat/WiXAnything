@@ -176,16 +176,22 @@ const refsOf = (id) => {
 // optional visual layer (geometry/styles/layering from a published-site scan)
 let visualMap = {};
 if (VISUAL) { try { visualMap = (JSON.parse(readIfExists(VISUAL) || '{}').elements) || {}; } catch {} }
+// Invert parent -> children ONCE, so a container can list the child elements inside it.
+// This is what makes "a Box has no .text — set its CHILD Text element" actionable.
+const childrenOf = {};
+for (const [nick, v] of Object.entries(visualMap)) {
+  if (v && v.rendered && v.parentNickname) (childrenOf[v.parentNickname] ||= []).push(nick);
+}
 const viz = (id) => {
-  const v = visualMap[id.replace('#', '')];
+  const nick = id.replace('#', '');
+  const v = visualMap[nick];
   if (!v || !v.rendered) return null;
   return {
     box: v.box,
     parentNickname: v.parentNickname ?? null,
-    style: v.style ? {
-      backgroundColor: v.style.backgroundColor, color: v.style.color, fontSize: v.style.fontSize,
-      fontFamily: v.style.fontFamily, position: v.style.position, borderRadius: v.style.borderRadius, zIndex: v.style.zIndex,
-    } : undefined,
+    children: (childrenOf[nick] || []).map(n => '#' + n),  // the elements nested inside this one
+    text: v.text ?? undefined,                              // current text/label content (if any)
+    style: v.style,                                         // full computed-style subset the scanner captured
   };
 };
 
@@ -278,13 +284,20 @@ writeFileSync(join(OUT, 'wix-elements.json'), JSON.stringify(json, null, 2));
 
 // ----- write Markdown -------------------------------------------------------
 function table(els) {
+  const content = (e) => {
+    const L = e.layout; if (!L) return '·';
+    if (L.children && L.children.length) return '▸ ' + L.children.slice(0, 6).join(' ') + (L.children.length > 6 ? ' …' : '');
+    if (L.text) return '"' + L.text.slice(0, 36) + '"';
+    return '·';
+  };
   const rows = els.map(e => {
     const ev = e.events && e.events.length ? ` ⚡${e.events.join('/')}` : '';
     const flag = (e.hidden ? '🙈 hidden' : (e.referencedIn.length ? '· in code' : '·')) + ev;
     const lay = e.layout && e.layout.box ? `${e.layout.box.x},${e.layout.box.y} · ${e.layout.box.w}×${e.layout.box.h}` : '·';
-    return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${lay} | ${e.guidance.replace(/\|/g, '\\|')} |`;
+    return `| \`${e.id}\` | \`${e.type}\` | ${flag} | ${lay} | ${content(e).replace(/\|/g, '\\|')} | ${e.guidance.replace(/\|/g, '\\|')} |`;
   });
-  return ['| ID | Type | State | Layout (x,y · w×h) | How to set it (Velo) |', '|----|------|-------|--------------------|----------------------|', ...rows].join('\n');
+  return ['| ID | Type | State | Layout | Content / children | How to set it (Velo) |',
+          '|----|------|-------|--------|--------------------|----------------------|', ...rows].join('\n');
 }
 
 let md = '';
@@ -294,10 +307,10 @@ md += `> Source: \`.wix/types/*\` (gitignored, refreshed by \`wix sync-types\`).
 md += `**${stats.pages} pages · ${stats.totalElements} elements** (${stats.globalElements} global, ${stats.hidden} hidden, ${stats.referenced} referenced in Velo${stats.withLayout ? `, ${stats.withLayout} with live layout/styles` : ''}).\n\n`;
 md += `## ⚠ Read this before targeting elements\n`;
 md += `- These are the **only** element IDs that exist. \`$w('#id')\` can target these and **nothing else** — it **cannot create** new elements.\n`;
-md += `- The map is **id → type only**. There is **no geometry, parent/child, or layout** here. For visual context, open the Local Editor or ask for a screenshot.\n`;
+md += `- When a **visual scan** has been merged, rows show **Layout** (x,y · w×h) and **Content / children** — a container's row lists its child elements (\`▸ #child …\`) and a text element shows its current text. Without a scan, the map is id→type only.\n`;
 md += `- **\`HiddenCollapsedElement\` (🙈) masks the real type.** A hidden Text, Box, or MultiStateBox all show as \`HiddenCollapsedElement\`. \`.expand()\`/\`.show()\` it first; confirm the real type in the editor before using \`.text\`/\`.label\`.\n`;
 md += `- **"in code" just means some Velo file references the id.** On editor-built sites most elements are NOT referenced in code — that is normal, **not** "unused".\n`;
-md += `- A **\`Box\`/\`MultiStateBox\` has NO \`.text\`.** Calling \`.text\` on a container is the classic bug — set its **child** Text elements, or use \`.changeState()\` for a MultiStateBox.\n\n`;
+md += `- A **\`Box\`/\`MultiStateBox\` has NO \`.text\`.** Calling \`.text\` on a container is the classic bug — set the **child** Text elements shown in its **Content / children** column, or use \`.changeState()\` for a MultiStateBox.\n\n`;
 md += `## 🌐 Global elements (header / footer / menus — addressable on EVERY page)\n\n`;
 md += table(masterEls) + '\n\n';
 for (const p of pages) {
