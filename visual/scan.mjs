@@ -23,6 +23,7 @@ const OUT = arg('--out', 'wix-visual.json');
 const ELEMENTS = arg('--elements', null);
 const FULL = argv.includes('--full');
 const SOFT = argv.includes('--soft'); // don't exit non-zero if the page model maps 0 nicknames
+const ALLOW_SUBMIT = argv.includes('--allow-submit'); // opt-in: also click submit/checkout-like buttons (RISKY on a live site)
 const STEPS = Number(arg('--steps', '6'));
 if (!URL) { console.error('Usage: node scan.mjs <url> [--out f] [--elements f] [--full] [--steps n]'); process.exit(2); }
 
@@ -115,8 +116,15 @@ if (FULL) {
     }
     return null;
   }
+  // SAFETY: this drives a LIVE published site. By default we only click step-NAVIGATION
+  // controls and NEVER submit/checkout-like buttons (which could create a lead/booking/
+  // order). Pass --allow-submit to opt in (at your own risk).
+  const DANGER = /submit|checkout|pay|buy|book|order|delete|remove|confirm|finish|send/i;
   async function clickAdvance() {
-    for (const n of ['nextBtn1','nextBtn2','nextBtn3','nextBtn4','submitBtn','editModelBtn']) {
+    const candidates = ['nextBtn1', 'nextBtn2', 'nextBtn3', 'nextBtn4'];
+    if (ALLOW_SUBMIT) candidates.push('submitBtn');
+    for (const n of candidates) {
+      if (!ALLOW_SUBMIT && DANGER.test(n)) continue; // never click submit/checkout-like controls by default
       const cid = nick2comp[n]; if (!cid) continue;
       if (!(await isVisible(cid))) continue;
       try { await page.locator('#' + cid).first().click({ timeout: 2500, force: true }); return n; } catch {}

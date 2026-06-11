@@ -35,6 +35,13 @@ node ../scripts/wix-elements-gen.mjs --repo <your-wix-site> --visual visual/wix-
 Now `wix-elements.md` has a **Layout** column (x,y · w×h) and `wix-elements.json` carries
 `layout: { box, style, parentNickname }` per element.
 
+## Safety
+
+`--full` drives a **live published site** like a visitor. By default it only clicks step
+**navigation** (`nextBtn1…4`) and selects the first option in repeaters — it will **never**
+click submit/checkout/booking-like buttons, so it can't create a lead, booking, or order.
+Pass `--allow-submit` only if you understand it may trigger the final action on a real site.
+
 ## Limits (be honest)
 
 - **Reflects the PUBLISHED/test-site state**, not your unsaved editor work. Publish (or use
