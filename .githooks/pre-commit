@@ -12,4 +12,9 @@ if [ -n "$blocked" ]; then
   echo "  (If you REALLY mean it: git commit --no-verify — not recommended.)"
   exit 1
 fi
+
+# Warn (do NOT block) if the element map looks stale vs .wix/types.
+if [ -f scripts/wix-check.mjs ] && [ -d .wix/types ]; then
+  node scripts/wix-check.mjs >/dev/null 2>&1 || echo "⚠ WiXAnything: element map may be stale — run 'npm run wix:elements' (not blocking this commit)"
+fi
 exit 0
