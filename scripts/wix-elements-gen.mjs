@@ -21,7 +21,7 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync, mkdirSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { join, basename, relative } from 'node:path';
 
 // ----- args -----------------------------------------------------------------
 const argv = process.argv.slice(2);
@@ -148,7 +148,7 @@ if (existsSync(PAGES_DIR)) {
 // Reference scan corpus (ALL src code, not just one page — avoids false "unused").
 const corpus = collectSrcCode(join(REPO, 'src'));
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-const relPath = (f) => f.replace(REPO + '\\', '').replace(REPO + '/', ''); // path formatting hardened in a later commit
+const relPath = (f) => relative(REPO, f).split('\\').join('/'); // clean, relative, POSIX — never leaks an absolute path/username
 /**
  * Which Velo files reference an element + which events are wired.
  * Anchored so `#text1` does NOT match `#text10`, and it detects Wix's editor-attached
