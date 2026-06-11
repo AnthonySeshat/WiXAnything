@@ -56,7 +56,7 @@ function writeFile(destRel, content, label) {
 }
 
 // ---- validate target -------------------------------------------------------
-say(`\n📦 Wix + Claude Addon → ${REPO}\n`);
+say(`\n📦 WiXAnything → ${REPO}\n`);
 const looksWix = existsSync(join(REPO, 'wix.config.json')) || existsSync(join(REPO, '.wix')) || existsSync(join(REPO, 'src', 'pages'));
 if (!looksWix && !FORCE) {
   console.error('✗ This does not look like a Wix CLI repo (no wix.config.json / .wix / src/pages).');
