@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-06-16
+
+Two new cloud bridges (media + CMS) so Claude can see your images and Data Collections,
+whole-site visual coverage, and a correctness fix for cross-page layout attribution.
 
 ### Added
 - **Whole-site visual coverage** — `visual/scan.mjs` now scans **multiple pages** in one run

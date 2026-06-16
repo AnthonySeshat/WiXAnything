@@ -1,6 +1,6 @@
 {
   "name": "wixanything",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Make Claude see and edit Wix Studio sites: surfaces the gitignored .wix/types element map, scaffolds code-owned UI, and documents/extends toward full structural editing.",
   "type": "module",
   "bin": {
