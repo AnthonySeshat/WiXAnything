@@ -57,4 +57,10 @@ if (URL) {
 } else {
   console.log('\n(no --url and none saved → element map only; pass --url "<published page>" once and it is remembered)');
 }
-console.log(`\n✓ done → ${join(OUT, 'wix-elements.md')}`);
+
+// 4) media map (non-fatal): cloud Media Manager images → committed map.
+// Always does the zero-auth code scan; lists the full Media Manager only if a
+// Wix API key is configured (env or .env). Never fails the run.
+run('media map  (cloud Media Manager → wix-media.md)', join(__dirname, 'wix-media.mjs'), ['--repo', REPO, '--out', OUT, '--soft']);
+
+console.log(`\n✓ done → ${join(OUT, 'wix-elements.md')}  +  ${join(OUT, 'wix-media.md')}`);

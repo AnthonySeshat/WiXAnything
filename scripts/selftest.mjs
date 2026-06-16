@@ -15,6 +15,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import * as vlib from '../visual/lib.mjs';
+import * as mlib from './wix-media-lib.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -176,13 +177,80 @@ try {
   ok(existsSync(join(dir, 'out.js')), 'produces a single output file');
   ok(node(['--check', join(__dirname, '..', 'examples', 'bridge', 'quote-configurator.js')]).status === 0, 'bridge reference component is valid JS');
 
+  // --- media bridge: pure lib (offline) -------------------------------------
+  console.log('media lib:');
+  const env = mlib.parseDotenv('# comment\nWIX_API_KEY="abc123"\nexport WIX_SITE_ID = site-1 \n\nBLANK=\n');
+  ok(env.WIX_API_KEY === 'abc123' && env.WIX_SITE_ID === 'site-1', 'parseDotenv: quotes/export/spacing handled');
+  const pu = mlib.parseWixImageUri('wix:image://v1/11062b_abc~mv2.jpg/Hero%20Shot.jpg#originWidth=800&originHeight=600');
+  ok(pu && pu.mediaId === '11062b_abc~mv2.jpg' && pu.filename === 'Hero Shot.jpg' && pu.width === 800 && pu.height === 600, 'parseWixImageUri: id/filename/dimensions');
+  ok(mlib.buildVeloImageUri({ mediaId: 'x~mv2.jpg', filename: 'a.jpg', width: 10, height: 20 }) === 'wix:image://v1/x~mv2.jpg/a.jpg#originWidth=10&originHeight=20', 'buildVeloImageUri round-trips');
+  const refs = mlib.scanCodeForMedia([
+    { file: 'src/a.js', txt: 'img.src = "wix:image://v1/m1~mv2.jpg/p.jpg#originWidth=4&originHeight=4";' },
+    { file: 'src/b.js', txt: 'a("wix:image://v1/m1~mv2.jpg/p.jpg#originWidth=4&originHeight=4"); v="wix:video://v1/vid123/clip.mp4"; u="https://static.wixstatic.com/media/abc.png";' },
+  ]);
+  const img = refs.find(r => r.kind === 'image');
+  ok(img && img.mediaId === 'm1~mv2.jpg', 'scanCodeForMedia: parses a wix:image:// reference');
+  ok(img.referencedIn.length === 2, 'scanCodeForMedia: dedupes one URL across two files');
+  ok(refs.some(r => r.kind === 'video') && refs.some(r => r.kind === 'cdn'), 'scanCodeForMedia: finds video scheme + CDN URL');
+  const nf = mlib.normalizeFile({ id: 'f-1', displayName: 'panel.jpg', mediaType: 'IMAGE', parentFolderId: 'fold-2', sizeInBytes: '12345', media: { image: { image: { id: 'mm~mv2.jpg', url: 'https://x/y.jpg', width: 1200, height: 800 } } } });
+  ok(nf.mediaType === 'IMAGE' && nf.width === 1200 && nf.veloSrc === 'wix:image://v1/mm~mv2.jpg/panel.jpg#originWidth=1200&originHeight=800', 'normalizeFile: builds veloSrc for an image');
+  const tree = mlib.foldersToTree([
+    { id: 'fold-1', displayName: 'Materials', parentFolderId: 'media-root' },
+    { id: 'fold-2', displayName: 'Sheet Metal', parentFolderId: 'fold-1' },
+  ]);
+  ok((tree.find(f => f.id === 'fold-2') || {}).path === '/Materials/Sheet Metal', 'foldersToTree: nested path resolved');
+
+  // --- media bridge: walkMedia with an INJECTED fake fetch (recursion+paging)-
+  console.log('media walk (fake fetch):');
+  const FOLDERS = {
+    'media-root': [{ id: 'fold-1', displayName: 'Materials', parentFolderId: 'media-root' }],
+    'fold-1': [{ id: 'fold-2', displayName: 'Sheet Metal', parentFolderId: 'fold-1' }],
+    'fold-2': [],
+  };
+  const FILES = {
+    'media-root': { '': { files: [{ id: 'r1' }], pagingMetadata: { cursors: { next: 'C1' } } }, 'C1': { files: [{ id: 'r2' }], pagingMetadata: { cursors: { next: '' } } } },
+    'fold-1': { '': { files: [] } },
+    'fold-2': { '': { files: [{ id: 'm1' }] } },
+  };
+  const seenAuth = [];
+  const fakeFetch = async (url, opts) => {
+    seenAuth.push(opts?.headers?.Authorization);
+    const u = new URL(url);
+    const parent = u.searchParams.get('parentFolderId');
+    const cursor = u.searchParams.get('paging.cursor') || '';
+    const body = u.pathname.endsWith('/folders')
+      ? { folders: FOLDERS[parent] || [] }
+      : (FILES[parent]?.[cursor] || { files: [] });
+    return { ok: true, status: 200, json: async () => body, text: async () => '' };
+  };
+  const walked = await mlib.walkMedia({ apiKey: 'k', siteId: 's', fetchImpl: fakeFetch });
+  ok(walked.folders.length === 2, 'walkMedia: recurses into subfolders (2 found)');
+  ok(walked.files.length === 3, 'walkMedia: paginates + walks (r1,r2,m1 = 3 files)');
+  ok(seenAuth.every(a => a === 'k'), 'walkMedia: sends the raw API key in Authorization on every call');
+
+  // --- media bridge: CLI end-to-end in code-scan mode (no network) ----------
+  console.log('media CLI (code-scan):');
+  const mdir = mkdtempSync(join(tmpdir(), 'wix-media-'));
+  mkdirSync(join(mdir, 'src/pages'), { recursive: true });
+  writeFileSync(join(mdir, 'wix.config.json'), JSON.stringify({ siteId: 'media-selftest' }));
+  writeFileSync(join(mdir, 'CLAUDE.md'), '# g\n\n<!-- WIX-MEDIA:START -->\nold\n<!-- WIX-MEDIA:END -->\n');
+  writeFileSync(join(mdir, 'src/pages/Home.h1.js'), '$w("#hero").src = "wix:image://v1/zz~mv2.jpg/Hero.jpg#originWidth=900&originHeight=300";\n');
+  const mr = node([join(__dirname, 'wix-media.mjs'), '--repo', mdir, '--no-api', '--quiet']);
+  ok(mr.status === 0, 'exits 0 in code-scan mode');
+  ok(existsSync(join(mdir, 'wix-media.json')) && existsSync(join(mdir, 'wix-media.md')), 'writes wix-media.json + .md');
+  const mj = JSON.parse(readFileSync(join(mdir, 'wix-media.json'), 'utf8'));
+  ok(mj.source === 'code scan only (no API key)', 'source reflects no-API code scan');
+  ok((mj.codeReferences || []).some(r => r.mediaId === 'zz~mv2.jpg'), 'CLI surfaces the hard-coded wix:image URL');
+  ok(/WIX-MEDIA:START[\s\S]*wix-media\.md[\s\S]*WIX-MEDIA:END/.test(readFileSync(join(mdir, 'CLAUDE.md'), 'utf8')), 'CLI fills the CLAUDE.md WIX-MEDIA block');
+  rmSync(mdir, { recursive: true, force: true });
+
   // --- npm package ships every file the installer copies --------------------
   console.log('npm package contents:');
   const pk = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: join(__dirname, '..'), shell: true, encoding: 'utf8' });
   let packed = [];
   try { packed = (JSON.parse(pk.stdout)[0].files || []).map(f => f.path.replace(/\\/g, '/')); } catch {}
   if (packed.length) {
-    for (const need of ['.githooks/pre-commit', 'assets/CLAUDE.md', 'assets/AGENTS.md', 'assets/claude-settings.json', 'visual/scan.mjs', 'visual/lib.mjs', 'scripts/wix-init.mjs', 'scripts/wix-full.mjs', 'scripts/wix-lint.mjs', 'scripts/wix-check.mjs', 'templates/custom-element/element.js', 'templates/companion-app/panel/panel.js'])
+    for (const need of ['.githooks/pre-commit', 'assets/CLAUDE.md', 'assets/AGENTS.md', 'assets/claude-settings.json', 'visual/scan.mjs', 'visual/lib.mjs', 'scripts/wix-init.mjs', 'scripts/wix-full.mjs', 'scripts/wix-lint.mjs', 'scripts/wix-check.mjs', 'scripts/wix-media.mjs', 'scripts/wix-media-lib.mjs', 'docs/MEDIA.md', 'templates/custom-element/element.js', 'templates/companion-app/panel/panel.js'])
       ok(packed.includes(need), `npm package ships ${need} (installer copies it)`);
     ok(!packed.some(p => p.includes('node_modules')), 'npm package excludes node_modules');
   } else {

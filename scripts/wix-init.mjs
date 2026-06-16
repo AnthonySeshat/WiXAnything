@@ -66,7 +66,7 @@ if (!looksWix && !FORCE) {
 
 // ---- 1. scripts + templates ------------------------------------------------
 say('1) scripts + templates');
-for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs', 'wix-build-element.mjs', 'wix-full.mjs', 'wix-check.mjs', 'wix-lint.mjs'])
+for (const f of ['wix-elements-gen.mjs', 'wix-doctor.mjs', 'wix-scaffold.mjs', 'wix-app-scaffold.mjs', 'wix-build-element.mjs', 'wix-full.mjs', 'wix-check.mjs', 'wix-lint.mjs', 'wix-media.mjs', 'wix-media-lib.mjs'])
   copy(join(ADDON, 'scripts', f), join('scripts', f));
 const hookSrc = join(ADDON, '.githooks', 'pre-commit'); // staleness + .env guard (opt-in)
 if (existsSync(hookSrc)) copy(hookSrc, join('.githooks', 'pre-commit'));
@@ -126,6 +126,7 @@ if (!existsSync(pkgPath)) {
   set('wix:diff', 'node scripts/wix-elements-gen.mjs --diff');   // regenerate + show added/removed/retyped ids
   set('wix:doctor', 'node scripts/wix-doctor.mjs');
   set('wix:check', 'node scripts/wix-check.mjs');               // staleness guard (map vs .wix/types)
+  set('wix:media', 'node scripts/wix-media.mjs');               // Media Manager bridge (cloud images → committed map)
   set('wix:lint', 'node scripts/wix-lint.mjs');                 // catch .text-on-container / unknown-id in Velo
   set('wix:scaffold', 'node scripts/wix-scaffold.mjs');          // Tier 2: code-owned region
   set('wix:build-element', 'node scripts/wix-build-element.mjs'); // bundle a custom element to one file
@@ -158,6 +159,7 @@ say(`\n✅ Installed. Next:`);
 say(`   • Read wix-elements.md (the element map Claude now uses).`);
 say(`   • Refresh anytime: npm run wix:elements`);
 say(`   • New code-owned section: npm run wix:scaffold custom-element <name>`);
+say(`   • See your cloud images: npm run wix:media  (full listing needs a Wix API key — see docs/wix-addon/MEDIA.md)`);
 say(`   • Visual layer (geometry/styles): cd visual && npm install, then see visual/README.md`);
 say(`   • Ceiling & options: docs/wix-addon/STRUCTURAL-EDITING.md`);
 say(`   • (optional) enable the stale-map + .env guard: git config core.hooksPath .githooks`);

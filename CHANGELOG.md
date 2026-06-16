@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- **Media bridge** (`npm run wix:media`) — a Wix repo has **zero image files** (only code
+  syncs to Git; every photo/video lives in the cloud **Media Manager**), so an agent could
+  only "see" an asset where a `wix:image://…` URL was hard-coded. This surfaces media into
+  committed, agent-readable `wix-media.md` / `wix-media.json` + a `CLAUDE.md` block.
+  Two layers, degrading gracefully: a **zero-auth code scan** (every Wix media URL already in
+  `src/`) always runs; with a **Wix API key** (`WIX_API_KEY` + `WIX_SITE_ID` in a gitignored
+  `.env`, scope *Read Media Manager*) it lists the **whole Media Manager** — folders + files,
+  each with the ready-to-use Velo `.src`. Read-only. Chained (non-fatal) into `npm run wix:full`.
+  Setup + limits in [`docs/MEDIA.md`](docs/MEDIA.md). Pure logic in `scripts/wix-media-lib.mjs`,
+  covered offline by the self-test (fake-fetch folder walk/paging + code-scan e2e).
+
 ## 0.2.0 — 2026-06-11
 
 A big round: the visual layer, a validation benchmark, a static linter, content-hash

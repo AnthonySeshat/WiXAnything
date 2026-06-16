@@ -99,6 +99,10 @@ Then open **`wix-elements.md`** — that's what Claude reads. Re-run `npm run wi
   Refreshed headlessly by `wix sync-types`. `npm run wix:diff` shows what changed.
 - **🎨 Visual layer (proven).** The `visual/` scanner reads your published page for real
   geometry + computed styles + layering, merged into the map (`--full` walks multi-step UIs).
+- **🖼 Media bridge.** `npm run wix:media` — a Wix repo has **no local image files** (media
+  lives in the cloud Media Manager), so this surfaces them into `wix-media.md`/`.json` with
+  each file's ready-to-use Velo `.src`. Works zero-auth from URLs already in code; lists the
+  **whole Media Manager** with a read-only Wix API key. See [`docs/MEDIA.md`](docs/MEDIA.md).
 - **🟡 Code-owned UI.** `npm run wix:scaffold custom-element|html-component|repeater <name>` —
   sections Claude owns 100% in code (one editor placement each). See [`docs/BRIDGE.md`](docs/BRIDGE.md).
 - **🟢 Companion app.** `npm run wix:app "<name>"` — a private `@wix/cli` app that auto-places
@@ -116,6 +120,7 @@ Then open **`wix-elements.md`** — that's what Claude reads. Re-run `npm run wi
 | `npm run wix:diff` | regenerate + report ids **added / removed / retyped** |
 | `npm run wix:doctor` | auth check → sync → generate, with status |
 | `npm run wix:lint` | flag `.text`-on-a-container / unknown-id bugs in your Velo (uses the map) |
+| `npm run wix:media` | list cloud Media Manager images/files → `wix-media.md` (full listing needs a Wix API key) |
 | `npm run wix:scaffold <kind> <name>` | scaffold a code-owned component |
 | `npm run wix:app "<name>"` | scaffold the companion app (widget + editor panel) |
 

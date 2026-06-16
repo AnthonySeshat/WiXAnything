@@ -69,7 +69,29 @@ See `docs/wix-addon/STRUCTURAL-EDITING.md` for the full L0–L4 ladder of what's
 not (incl. the unsupported, account-risk L3 and the Headless L4 rebuild), and
 `docs/wix-addon/HOSTS.md` for the one-time editor wiring each host needs.
 
-## 5. Publish loop
+## 5. Images & media — the repo has NONE locally
+
+A Wix repo contains **zero image files**: only code syncs to Git, while every uploaded
+photo/video lives in the cloud **Media Manager**. So you're "media-blind" unless a
+`wix:image://…` URL is hard-coded in Velo. The addon fixes this:
+
+> **To reference any image/video/document, read [`wix-media.md`](./wix-media.md).**
+> (Machine-readable copy: `wix-media.json`.)
+
+```bash
+npm run wix:media        # refresh the media map
+```
+
+- It **always** scans `src/` for media URLs already in code (zero-auth).
+- With a **Wix API key** (`WIX_API_KEY` + `WIX_SITE_ID` in a gitignored `.env`, scope
+  "Read Media Manager"), it lists the **whole Media Manager** — folders + files.
+  See `docs/wix-addon/MEDIA.md` to set that up. The listing is **read-only**.
+- To put an asset on an element: `$w('#img').src = "<veloSrc>";` using the file's **Velo
+  src** from the map (`wix:image://v1/<mediaId>/<file>#originWidth=…&originHeight=…`) —
+  copy it verbatim; don't hand-edit the mediaId. Folder names are labels for finding the
+  right asset (e.g. "Materials/Sheet Metal"), not part of `.src`.
+
+## 6. Publish loop
 
 Edit Velo in `src/` → `git push` → publish from the repo (`wix publish`, or the Wix
 dashboard). Don't publish local code over newer editor changes without syncing first.
@@ -77,3 +99,7 @@ dashboard). Don't publish local code over newer editor changes without syncing f
 <!-- WIX-ELEMENTS:START -->
 <!-- (auto-filled by `npm run wix:elements` — do not edit between these markers) -->
 <!-- WIX-ELEMENTS:END -->
+
+<!-- WIX-MEDIA:START -->
+<!-- (auto-filled by `npm run wix:media` — do not edit between these markers) -->
+<!-- WIX-MEDIA:END -->
