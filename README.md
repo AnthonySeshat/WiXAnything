@@ -1,11 +1,12 @@
 # WiXAnything
 
-> **Give Claude Code real sight of a Wix Studio site — every element, ID, type, layout & style — so the Velo it writes is accurate and correctly connected.**
+> **Give Claude Code real sight of a Wix Studio site — every element, ID, type, layout, style, cloud media asset & CMS field — so the Velo it writes is accurate and correctly connected.**
 
 ![Node](https://img.shields.io/badge/node-%E2%89%A518-339933?logo=node.js&logoColor=white)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 ![Deps](https://img.shields.io/badge/runtime%20deps-0-brightgreen)
-![Status](https://img.shields.io/badge/status-private%20beta-orange)
+![Status](https://img.shields.io/badge/status-public%20beta-brightgreen)
+![Release](https://img.shields.io/github/v/release/AnthonySeshat/WiXAnything)
 
 WiXAnything is a drop-in **knowledge layer** for the official [Wix + Claude](https://www.wix.com/blog/how-to-use-claude-with-wix)
 setup (Wix CLI + Git Integration). The official integration lets Claude edit your site's
@@ -34,6 +35,10 @@ $w('#priceBox').text = 'From $30k';   // ❌ fails — #priceBox is a Box, not a
 2. **Adds the visual layer** by reading your *published* page: real **geometry, computed
    styles, and layering**, keyed back to your IDs. *(The official Wix MCP/plugin exposes none
    of this to an external agent — Wix's own dev community has an open request for it.)*
+3. **Bridges the cloud** the repo can't see: a Wix repo has **no local image files** and no CMS
+   schema, so `wix:media` surfaces the **Media Manager** (each asset's ready-to-use Velo `.src`)
+   and `wix:cms` surfaces every **Data Collection + field schema** — both into committed maps,
+   so Claude references real assets and real field keys instead of guessing.
 
 **Result:** Claude codes against your **actual** site — right elements, right properties,
 correctly connected — the first time. It's a read-only layer that **extends** the official
@@ -62,10 +67,13 @@ site's **elements, layout, or styles** to an external agent. That's the gap WiXA
 | Layout + computed styles + nesting | ❌ | ❌ | ❌ | ✅ |
 | Edit your Velo against real IDs | ➖ | ❌ | ❌ | ✅ |
 | AI visual editing of native elements | ❌ | ❌ | ✅¹ | ➖² |
-| CMS / Stores / bookings data | ✅ | ✅ | ➖ | ➖³ |
+| Media assets + CMS field **schema** in the repo | ➖³ | ➖³ | ❌ | ✅ |
+| Live CMS / Stores / bookings **row data** | ✅ | ✅ | ➖ | ➖⁴ |
 
 <sub>¹ Aria edits visually but only as Wix's own **first-party** agent — not your repo/agent.
-² Frontier; needs Wix-internal APIs (see the ceiling doc).  ³ Use the Wix MCP for data.</sub>
+² Frontier; needs Wix-internal APIs (see the ceiling doc).  ³ WiXAnything writes media + CMS
+**schema** into committed, agent-readable maps (`wix:media` / `wix:cms`); the MCPs can query the
+same REST live but don't commit it to your repo.  ⁴ For live row data / writes, use the Wix MCP.</sub>
 
 ## Install
 
@@ -74,6 +82,8 @@ Run from your Wix site's repo root (the folder with `wix.config.json`):
 ```bash
 # 1) install the addon straight from GitHub (no local paths)
 npx -y github:AnthonySeshat/WiXAnything --repo .
+#    …or pin a release for reproducible installs:
+#    npx -y github:AnthonySeshat/WiXAnything#v0.3.0 --repo .
 
 # 2) enable the visual (layout/styles) scanner — one-time
 cd visual && npm install && cd ..
@@ -86,9 +96,8 @@ Then open **`wix-elements.md`** — that's what Claude reads. Re-run `npm run wi
 (or `npm run wix:elements` for types only) after any change in the editor.
 
 > 🔒 Needs the Wix CLI logged in (`wix login`) once, so it can sync the latest element maps.
-> The committed `wix-elements.md` then works for anyone. _(This repo is private/pre-release;
-> the `npx github:` install works for accounts with access. `npm publish` would later enable
-> a public `npx wixanything`.)_
+> The committed `wix-elements.md` then works for anyone. _(Public repo — the `npx github:`
+> install works for everyone; `npm publish` would later enable a shorter `npx wixanything`.)_
 
 ---
 

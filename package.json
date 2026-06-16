@@ -1,7 +1,7 @@
 {
   "name": "wixanything",
   "version": "0.3.0",
-  "description": "Make Claude see and edit Wix Studio sites: surfaces the gitignored .wix/types element map, scaffolds code-owned UI, and documents/extends toward full structural editing.",
+  "description": "Make Claude see a Wix Studio site: surfaces the gitignored .wix/types element map, page layout/styles, the cloud Media Manager and CMS field schema into committed, agent-readable maps, plus code-owned UI scaffolds. Read-only, ToS-safe.",
   "type": "module",
   "bin": {
     "wixanything": "scripts/wix-init.mjs"
