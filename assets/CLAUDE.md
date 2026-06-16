@@ -49,7 +49,9 @@ reads the **published** page, ToS-safe), `wix-elements.md` gains a **Layout** co
 `wix-elements.json` carries `layout: { box, style, parentNickname }` per element — real
 position, size, computed styles, and parent. If those are absent, ask for a screenshot or
 run the scan (see `visual/README.md`). Layout reflects the **published/test-site** state,
-and multi-state UIs only capture rendered steps.
+and multi-state UIs only capture rendered steps. Layout is present only for the **page(s)
+actually scanned** (plus global header/footer/menu elements); a blank Layout means "not
+scanned", **not** "no element" — scan more pages with extra `--url` flags.
 
 ## 4. To add NEW UI that you fully control → use a code-owned component
 

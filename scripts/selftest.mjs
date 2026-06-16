@@ -116,6 +116,93 @@ try {
   ok(jb.title.rendered === true && jb.title.parentNickname === 'card', 'joinByNick: resolves parentComp → parentNickname');
   ok(jb.card.rendered === false, 'joinByNick: unscanned comp marked rendered:false');
 
+  // --- page identity (the cross-page fingerprint, pure/offline) --------------
+  console.log('page identity:');
+  const pSets = new Map([
+    ['about', new Set(['text1', 'text2', 'teamGrid'])],
+    ['home', new Set(['hero', 'ctaBtn', 'text1', 'text2'])],
+    ['tiny', new Set(['text1'])],
+  ]);
+  const mSet = new Set(['header1', 'footer1']);
+  ok(vlib.matchScanToPage(new Set(['header1', 'footer1', 'hero', 'ctaBtn', 'text1', 'text2']), pSets, mSet).pageId === 'home', 'matchScanToPage: full home scan → home (J=1.0)');
+  ok(vlib.matchScanToPage(new Set(['header1', 'footer1', 'text1']), pSets, mSet).pageId === 'tiny', 'matchScanToPage: subset scan → tiny, NOT home (defeats subset collision)');
+  ok(vlib.matchScanToPage(new Set(['header1', 'footer1', 'zzz']), pSets, mSet).pageId === null, 'matchScanToPage: disjoint scan → null (no force-fit below floor)');
+  ok(vlib.matchScanToPage(new Set(['hero']), pSets, mSet, { explicitPageId: 'about' }).pageId === 'about', 'matchScanToPage: explicitPageId overrides fingerprint');
+  // exact tie: two pages with identical page-specific sets → abstain, don't force-merge to the first
+  const tieSets = new Map([['alpha', new Set(['text1', 'button1'])], ['zeta', new Set(['text1', 'button1'])]]);
+  ok(vlib.matchScanToPage(new Set(['header1', 'text1', 'button1']), tieSets, new Set(['header1'])).pageId === null, 'matchScanToPage: indistinguishable pages abstain (no lexicographic force-merge)');
+  // attributeScans: same nick keeps per-page geometry; master shared not duplicated
+  const at = vlib.attributeScans([
+    { pageSlug: 'a', elements: { header1: { rendered: true, box: { x: 1 } }, title: { rendered: true, box: { x: 0 } }, card: { rendered: true }, text1: { rendered: true, box: { x: 0 } } } },
+    { pageSlug: 'b', elements: { about: { rendered: true }, text1: { rendered: true, box: { x: 99 } } } },
+  ], new Map([['p1', new Set(['title', 'card', 'text1'])], ['p2', new Set(['about', 'text1'])]]), new Set(['header1']));
+  ok(at.pageGeom.p1?.text1?.box.x === 0 && at.pageGeom.p2?.text1?.box.x === 99, 'attributeScans: same nick #text1 keeps per-page geometry (no cross-leak)');
+  ok(at.masterGeom.header1 && !at.pageGeom.p1?.header1, 'attributeScans: master nick shared into masterGeom, not duplicated into a page');
+
+  // --- cross-page visual scoping (END-TO-END regression for the leak bug) ----
+  // Own temp repo so it can't perturb the shared `dir` used by later tests.
+  console.log('cross-page visual scoping:');
+  const xdir = mkdtempSync(join(tmpdir(), 'wix-xpage-'));
+  mkdirSync(join(xdir, '.wix/types/p0001'), { recursive: true });
+  mkdirSync(join(xdir, '.wix/types/p0002'), { recursive: true });
+  mkdirSync(join(xdir, '.wix/types/masterPage'), { recursive: true });
+  writeFileSync(join(xdir, '.wix/types/masterPage/masterPage.d.ts'), 'type MasterPageElementsMap = {\n\t"#header1": $w.Header;\n}\n');
+  writeFileSync(join(xdir, '.wix/types/p0001/p0001.d.ts'), 'type PageElementsMap = MasterPageElementsMap & {\n\t"#title": $w.Text;\n\t"#card": $w.Box;\n\t"#secret": $w.HiddenCollapsedElement;\n\t"#text1": $w.Text;\n}\n');
+  writeFileSync(join(xdir, '.wix/types/p0002/p0002.d.ts'), 'type PageElementsMap = MasterPageElementsMap & {\n\t"#title": $w.Text;\n\t"#text1": $w.Text;\n\t"#about": $w.Text;\n}\n');
+  writeFileSync(join(xdir, 'viz.json'), JSON.stringify({ elements: {
+    header1: { compId: 'comp-h', rendered: true, box: { x: 0, y: 0, w: 1440, h: 80 }, style: {}, parentNickname: null },
+    card: { compId: 'comp-1', rendered: true, box: { x: 0, y: 100, w: 200, h: 120 }, style: {}, parentNickname: null },
+    title: { compId: 'comp-2', rendered: true, box: { x: 8, y: 108, w: 180, h: 24 }, style: {}, parentNickname: 'card', text: 'Hello world' },
+    secret: { compId: 'comp-3', rendered: true, tag: 'img', box: { x: 8, y: 140, w: 20, h: 20 }, style: {}, parentNickname: 'card' },
+  } }));
+  const xg = node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', xdir, '--quiet', '--visual', join(xdir, 'viz.json')]);
+  ok(xg.status === 0, 'exits 0 with cross-page --visual');
+  const xj = JSON.parse(readFileSync(join(xdir, 'wix-elements.json'), 'utf8'));
+  const xp1 = Object.fromEntries(xj.pages.find(p => p.pageId === 'p0001').elements.map(e => [e.id, e]));
+  const xp2 = Object.fromEntries(xj.pages.find(p => p.pageId === 'p0002').elements.map(e => [e.id, e]));
+  const xglob = Object.fromEntries(xj.global.map(e => [e.id, e]));
+  ok(xp1['#title']?.layout?.text === 'Hello world', 'matched page p0001: #title gets the scanned geometry');
+  ok((xp1['#card']?.layout?.children || []).includes('#title'), 'matched page p0001: #card lists #title child');
+  ok(xp2['#title']?.layout === null, 'other page p0002: #title layout is null (geometry did NOT leak)');
+  ok(xp2['#text1']?.layout === null, 'other page p0002: shared-nick #text1 layout is null (no leak)');
+  ok(!!xglob['#header1']?.layout?.box, 'global #header1 merges geometry regardless of which page matched');
+
+  // v2 multi-page scan: TWO scans, each fingerprinted to its own page → each page
+  // keeps its OWN #title text (the whole-site coverage the fix enables).
+  writeFileSync(join(xdir, 'viz2.json'), JSON.stringify({ version: 2, scannedAt: 'x', pages: [
+    { pageSlug: 'p1', elements: {
+      header1: { compId: 'comp-h', rendered: true, box: { x: 0, y: 0, w: 1440, h: 80 }, style: {}, parentNickname: null },
+      card: { compId: 'comp-1', rendered: true, box: { x: 0, y: 100, w: 200, h: 120 }, style: {}, parentNickname: null },
+      title: { compId: 'comp-2', rendered: true, box: { x: 8, y: 108, w: 180, h: 24 }, style: {}, parentNickname: 'card', text: 'P1 title' },
+      text1: { compId: 'comp-t1', rendered: true, box: { x: 1, y: 200, w: 50, h: 20 }, style: {}, parentNickname: null },
+    } },
+    { pageSlug: 'p2', elements: {
+      about: { compId: 'comp-a', rendered: true, box: { x: 0, y: 300, w: 300, h: 50 }, style: {}, parentNickname: null },
+      title: { compId: 'comp-2b', rendered: true, box: { x: 8, y: 308, w: 180, h: 24 }, style: {}, parentNickname: null, text: 'P2 title' },
+      text1: { compId: 'comp-t2', rendered: true, box: { x: 2, y: 400, w: 50, h: 20 }, style: {}, parentNickname: null },
+    } },
+  ] }));
+  const xg2 = node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', xdir, '--quiet', '--visual', join(xdir, 'viz2.json')]);
+  ok(xg2.status === 0, 'exits 0 with v2 multi-page --visual');
+  const xj2 = JSON.parse(readFileSync(join(xdir, 'wix-elements.json'), 'utf8'));
+  const x2p1 = Object.fromEntries(xj2.pages.find(p => p.pageId === 'p0001').elements.map(e => [e.id, e]));
+  const x2p2 = Object.fromEntries(xj2.pages.find(p => p.pageId === 'p0002').elements.map(e => [e.id, e]));
+  ok(x2p1['#title']?.layout?.text === 'P1 title' && x2p2['#title']?.layout?.text === 'P2 title', 'v2: each page keeps its OWN #title geometry (whole-site coverage, no cross-leak)');
+  ok(x2p1['#text1']?.layout?.box.x === 1 && x2p2['#text1']?.layout?.box.x === 2, 'v2: shared-nick #text1 has the correct per-page box on each page');
+  ok(x2p2['#about']?.layout?.box && x2p1['#secret']?.layout === null, 'v2: page-specific elements only on their own page');
+  rmSync(xdir, { recursive: true, force: true });
+
+  // --visual requested but the file has no usable scan → warn (don't silently no-op)
+  const wdir = mkdtempSync(join(tmpdir(), 'wix-vwarn-'));
+  mkdirSync(join(wdir, '.wix/types/p0001'), { recursive: true });
+  mkdirSync(join(wdir, '.wix/types/masterPage'), { recursive: true });
+  writeFileSync(join(wdir, '.wix/types/masterPage/masterPage.d.ts'), 'type MasterPageElementsMap = {\n\t"#header1": $w.Header;\n}\n');
+  writeFileSync(join(wdir, '.wix/types/p0001/p0001.d.ts'), 'type PageElementsMap = MasterPageElementsMap & {\n\t"#title": $w.Text;\n}\n');
+  writeFileSync(join(wdir, 'empty.json'), '{}');
+  const wr = node([join(__dirname, 'wix-elements-gen.mjs'), '--repo', wdir, '--quiet', '--visual', join(wdir, 'empty.json')]);
+  ok(/no scan data loaded/.test(wr.stderr || ''), '--visual with an empty scan file warns instead of silently merging nothing');
+  rmSync(wdir, { recursive: true, force: true });
+
   // --- CLAUDE.md digest block -----------------------------------------------
   console.log('CLAUDE.md digest:');
   writeFileSync(join(dir, 'CLAUDE.md'), '# guide\n\n<!-- WIX-ELEMENTS:START -->\nold\n<!-- WIX-ELEMENTS:END -->\n');

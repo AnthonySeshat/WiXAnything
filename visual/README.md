@@ -23,17 +23,23 @@ public site you own carries none of the account-ban risk of editor automation.
 ```bash
 cd visual
 npm install                      # playwright + chromium (one-time)
+# one page:
 node scan.mjs "<published-page-url>" --out wix-visual.json --elements ../wix-elements.json
+# or several pages in one run (whole-site coverage):
+node scan.mjs "<page-1-url>" "<page-2-url>" --out wix-visual.json --elements ../wix-elements.json
 ```
 
-Then enrich the element map with it:
+Multiple pages are written to one **v2** file (`{ version: 2, pages: [...] }`); old
+single-page files still work. Then enrich the element map with it:
 
 ```bash
 node ../scripts/wix-elements-gen.mjs --repo <your-wix-site> --visual visual/wix-visual.json
 ```
 
 Now `wix-elements.md` has a **Layout** column (x,y · w×h) and `wix-elements.json` carries
-`layout: { box, style, parentNickname }` per element.
+`layout: { box, style, parentNickname }` per element. The generator **fingerprint-matches**
+each scan to its `.wix/types` page, so a page's geometry is never attached to same-named
+elements on other pages (a page you didn't scan simply has a blank Layout).
 
 ## Safety
 

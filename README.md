@@ -97,8 +97,10 @@ Then open **`wix-elements.md`** — that's what Claude reads. Re-run `npm run wi
 - **🟢 Element map (proven).** `wix-elements.md`/`.json` + a `CLAUDE.md` rules block: every
   element, its `$w` type, hidden state, Velo-referenced flag, and per-type "how to set it".
   Refreshed headlessly by `wix sync-types`. `npm run wix:diff` shows what changed.
-- **🎨 Visual layer (proven).** The `visual/` scanner reads your published page for real
-  geometry + computed styles + layering, merged into the map (`--full` walks multi-step UIs).
+- **🎨 Visual layer (proven).** The `visual/` scanner reads your published page(s) for real
+  geometry + computed styles + layering, merged into the map (`--full` walks multi-step UIs;
+  pass `--url` more than once for whole-site coverage). Each scan is **fingerprint-matched** to
+  its page, so layout never leaks across same-named elements on different pages.
 - **🖼 Media bridge.** `npm run wix:media` — a Wix repo has **no local image files** (media
   lives in the cloud Media Manager), so this surfaces them into `wix-media.md`/`.json` with
   each file's ready-to-use Velo `.src`. Works zero-auth from URLs already in code; lists the
@@ -147,6 +149,9 @@ Pure Node, **zero runtime dependencies** (the visual scanner adds Playwright in 
 
 - The `.wix/types` map is **id→type only**; geometry/styles come from the optional visual
   scan, which reads the **published/test-site** state (use `--full` for multi-step UIs).
+  Layout is present only for **pages you actually scanned** (plus global header/footer/menu
+  elements) — a blank Layout means "not scanned", not "no element". Scan more pages with extra
+  `--url` flags.
 - `HiddenCollapsedElement` masks the real type until the element is shown.
 - `$w` can **never create** native elements — new native UI needs one editor placement
   (or a code-owned Custom Element / the companion app). True visual structural editing of

@@ -27,10 +27,15 @@ const OUT = arg('--out', REPO);
 const cfgPath = join(REPO, 'wixanything.config.json');
 let cfg = {};
 try { cfg = JSON.parse(readFileSync(cfgPath, 'utf8')); } catch {}
-const urlArg = arg('--url', null);
-const URL = urlArg || cfg.url || null;
-if (urlArg && urlArg !== cfg.url) {
-  try { writeFileSync(cfgPath, JSON.stringify({ ...cfg, url: URL }, null, 2) + '\n'); console.log('(saved url to wixanything.config.json — future runs need no --url)'); } catch {}
+// Collect ALL --url args (repeatable for whole-site coverage); fall back to the
+// saved urls[] (or the legacy single url string). A freshly-passed set is saved.
+const urlArgs = [];
+for (let i = 0; i < argv.length; i++) if (argv[i] === '--url' && argv[i + 1] && !argv[i + 1].startsWith('--')) urlArgs.push(argv[++i]);
+const savedUrls = Array.isArray(cfg.urls) ? cfg.urls : (cfg.url ? [cfg.url] : []); // guard a hand-edited string
+const urls = [...new Set(urlArgs.length ? urlArgs : savedUrls)];
+if (urlArgs.length) {
+  const { url: _legacy, ...rest } = cfg; // migrate fully to urls[]; drop the stale legacy scalar
+  try { writeFileSync(cfgPath, JSON.stringify({ ...rest, urls }, null, 2) + '\n'); console.log(`(saved ${urls.length} url(s) to wixanything.config.json — future runs need no --url)`); } catch {}
 }
 
 const run = (label, file, args) => {
@@ -41,7 +46,7 @@ const run = (label, file, args) => {
 // 1) element types (auth + sync-types + generate)
 run('1/3  element map  (wix sync-types + generate)', join(__dirname, 'wix-doctor.mjs'), ['--repo', REPO, '--out', OUT, '--soft']);
 
-if (URL) {
+if (urls.length) {
   const scan = join(ROOT, 'visual', 'scan.mjs');
   const visualOut = join(ROOT, 'visual', 'wix-visual.json');
   if (!existsSync(join(ROOT, 'visual', 'node_modules'))) {
@@ -49,13 +54,13 @@ if (URL) {
     spawnSync('npm', ['install', '--no-audit', '--no-fund'], { cwd: join(ROOT, 'visual'), stdio: 'inherit', shell: true });
   }
   if (existsSync(join(ROOT, 'visual', 'node_modules'))) {
-    run('2/3  visual scan  (layout + styles, all steps)', scan, [URL, '--out', visualOut, '--elements', join(OUT, 'wix-elements.json'), '--full']);
+    run(`2/3  visual scan  (layout + styles, all steps · ${urls.length} page${urls.length > 1 ? 's' : ''})`, scan, [...urls, '--out', visualOut, '--elements', join(OUT, 'wix-elements.json'), '--full']);
     run('3/3  merge layout into the element map', join(__dirname, 'wix-elements-gen.mjs'), ['--repo', REPO, '--out', OUT, '--visual', visualOut]);
   } else {
     console.log('⚠  visual deps did not install — run manually: cd visual && npm install');
   }
 } else {
-  console.log('\n(no --url and none saved → element map only; pass --url "<published page>" once and it is remembered)');
+  console.log('\n(no --url and none saved → element map only; pass --url "<published page>" — repeat --url for more pages — once and it is remembered)');
 }
 
 // 4) media map (non-fatal): cloud Media Manager images → committed map.

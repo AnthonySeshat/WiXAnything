@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Added
+- **Whole-site visual coverage** — `visual/scan.mjs` now scans **multiple pages** in one run
+  (`npm run wix:full -- --url A --url B`, remembered in `wixanything.config.json`) and writes a
+  backward-compatible **v2** `wix-visual.json` (`{version:2, pages:[…]}`); old single-page v1
+  files still load unchanged. Combined with the fingerprint-scoped merge above, each page gets
+  its **own** real geometry.
 - **CMS bridge** (`npm run wix:cms`) — lists every **Data Collection + field schema** (each
   field's `key`, `type`, required flag, and `REFERENCE`/`MULTI_REFERENCE` target) via the Wix
   Data REST API into committed `wix-cms.md` / `wix-cms.json` + a `CLAUDE.md` block, each
@@ -23,6 +28,14 @@
   covered offline by the self-test (fake-fetch folder walk/paging + code-scan e2e).
 
 ### Fixed
+- **Cross-page layout leak (correctness):** the visual scan keyed geometry by bare nickname,
+  so one scanned page's layout/children/text/style silently attached to same-named elements
+  (`#text1`, etc.) on **every other page**. The merge is now **fingerprint-scoped**: each scan
+  is attributed to exactly one `.wix/types` page (by page-specific nickname overlap), and its
+  geometry merges only into that page — shared header/footer/menu elements still merge across
+  pages. Other pages show a blank Layout (honestly "not scanned") instead of wrong data. Pure
+  matcher (`matchScanToPage`/`attributeScans`) in `visual/lib.mjs`, covered by an offline
+  cross-page no-leak regression in the self-test.
 - **Media bridge:** a malformed `%` in a hard-coded URL no longer crashes the zero-auth scan
   (`decodeURIComponent` is now guarded); image filenames with spaces / `#` are URL-encoded in
   the generated Velo `.src` so it actually resolves and round-trips. Also: hyphenated Wix CDN

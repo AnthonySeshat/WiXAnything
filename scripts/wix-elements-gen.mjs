@@ -194,31 +194,51 @@ const refsOf = (id) => {
 };
 
 // ----- parse master + pages -------------------------------------------------
-// optional visual layer (geometry/styles/layering from a published-site scan)
-let visualMap = {};
-if (VISUAL) { try { visualMap = (JSON.parse(readIfExists(VISUAL) || '{}').elements) || {}; } catch {} }
-// Invert parent -> children ONCE, so a container can list the child elements inside it.
-// This is what makes "a Box has no .text — set its CHILD Text element" actionable.
-const childrenOf = {};
-for (const [nick, v] of Object.entries(visualMap)) {
-  if (v && v.rendered && v.parentNickname) (childrenOf[v.parentNickname] ||= []).push(nick);
+// Optional visual layer (geometry/styles/layering from a published-site scan).
+// A scan reads ONE page but can't know which .wix/types page it is — so we
+// FINGERPRINT-attribute each scan to exactly one page (visual/lib.mjs) and merge
+// geometry ONLY into that page (+ shared master/global elements). This stops one
+// page's #text1 geometry from leaking onto every other page's same-named element.
+// Loaded lazily so the everyday types-only path keeps ZERO dependency on visual/.
+let attributeScans = null, visualImportErr = null;
+if (VISUAL) { try { ({ attributeScans } = await import('../visual/lib.mjs')); } catch (e) { visualImportErr = e; } }
+
+// Accept BOTH the v1 flat single-page scan ({elements:{…}}) and the v2 multi-page
+// scan ({pages:[{elements:{…}}]}); normalize to a list of {url,pageSlug,pageId,elements}.
+// A visual `elements` is an OBJECT; a wix-elements.json's pages[i].elements is an
+// ARRAY, so isElemObj never mis-reads that file as a v2 scan.
+function loadVisual(path) {
+  let raw = {}; try { raw = JSON.parse(readIfExists(path) || '{}'); } catch {}
+  const isElemObj = (e) => e && typeof e === 'object' && !Array.isArray(e);
+  if (Array.isArray(raw.pages) && raw.pages.some(p => p && isElemObj(p.elements)))
+    return raw.pages.map(p => ({ url: p.url ?? null, pageSlug: p.pageSlug ?? null, pageId: p.pageId ?? null, elements: p.elements || {} }));
+  if (isElemObj(raw.elements))
+    return [{ url: raw.url ?? null, pageSlug: null, pageId: null, elements: raw.elements }];
+  return [];
 }
-const viz = (id) => {
-  const nick = id.replace('#', '');
-  const v = visualMap[nick];
+const bare = (id) => id.startsWith('#') ? id.slice(1) : id;
+// Invert parent -> children for ONE geometry namespace, so a container can list
+// the child elements inside it ("a Box has no .text — set its CHILD Text element").
+const childrenForGeom = (geom) => {
+  const c = {};
+  for (const [n, v] of Object.entries(geom)) if (v && v.rendered && v.parentNickname) (c[v.parentNickname] ||= []).push(n);
+  return c;
+};
+const vizFrom = (geom, children, id) => {
+  const n = bare(id), v = geom[n];
   if (!v || !v.rendered) return null;
   return {
     box: v.box,
     parentNickname: v.parentNickname ?? null,
-    children: (childrenOf[nick] || []).map(n => '#' + n),  // the elements nested inside this one
-    text: v.text ?? undefined,                              // current text/label content (if any)
-    style: v.style,                                         // full computed-style subset the scanner captured
+    children: (children[n] || []).map(x => '#' + x),  // the elements nested inside this one
+    text: v.text ?? undefined,                         // current text/label content (if any)
+    style: v.style,                                    // full computed-style subset the scanner captured
   };
 };
 
 // Recover the true type of a HiddenCollapsedElement: (a) from Velo accessor usage,
 // (b) from the rendered DOM tag the scanner records — removes a class of guessing.
-function recoverHiddenType(id) {
+function recoverHiddenType(id, geom) {
   const en = escapeRe(id.slice(1));
   const accRe = new RegExp("\\$w\\(\\s*['\"]#" + en + "['\"]\\s*\\)\\s*\\.([a-zA-Z]\\w*)", 'g');
   const ACC = [[/^(changeState|currentState)$/, 'MultiStateBox'], [/^label$/, 'Button'],
@@ -228,17 +248,18 @@ function recoverHiddenType(id) {
     let m; accRe.lastIndex = 0;
     while ((m = accRe.exec(c.txt))) for (const [pat, t] of ACC) if (pat.test(m[1])) return { type: t, via: 'velo .' + m[1] };
   }
-  const v = visualMap[id.slice(1)];
+  const v = geom[bare(id)];
   const TAG = { img: 'Image', button: 'Button', a: 'Button', input: 'TextInput', textarea: 'TextBox', h1: 'Text', h2: 'Text', h3: 'Text', p: 'Text', span: 'Text' };
   if (v && v.tag && TAG[v.tag]) return { type: TAG[v.tag], via: 'rendered <' + v.tag + '>' };
   return null;
 }
 
-// Enrich a parsed element with references, events, layout, and (for hidden ones) a recovered type.
-function enrich(e) {
-  const out = { ...e, ...refsOf(e.id), layout: viz(e.id) };
+// Enrich a parsed element with references, events, layout (from THIS page's geom),
+// and (for hidden ones) a recovered type.
+function enrich(e, geom, children) {
+  const out = { ...e, ...refsOf(e.id), layout: vizFrom(geom, children, e.id) };
   if (e.hidden) {
-    const rec = recoverHiddenType(e.id);
+    const rec = recoverHiddenType(e.id, geom);
     out.recoveredType = rec ? rec.type : null;
     out.guidance = rec
       ? `Hidden/collapsed — likely $w.${rec.type} (${rec.via}). .show()/.expand() first, then use the ${rec.type} API.`
@@ -249,21 +270,56 @@ function enrich(e) {
   return out;
 }
 
+// Parse master + every page FIRST (id->type sets), so a scan can be fingerprint-
+// attributed to one page before we enrich. master ∩ page nick sets are disjoint
+// (parseElementsMap scopes a page to the `{…}` body after `MasterPageElementsMap &`).
 const masterDts = readIfExists(join(TYPES_DIR, 'masterPage', 'masterPage.d.ts'));
-const masterEls = parseElementsMap(masterDts).map(enrich);
-if (masterDts && /\$w\./.test(masterDts) && masterEls.length === 0) parseWarnings.push('masterPage.d.ts has $w types but parsed 0 elements');
+const masterParsed = parseElementsMap(masterDts);
+if (masterDts && /\$w\./.test(masterDts) && masterParsed.length === 0) parseWarnings.push('masterPage.d.ts has $w types but parsed 0 elements');
+const masterSet = new Set(masterParsed.map(e => bare(e.id)));
 
-const pages = [];
+const pagesRaw = [];
 for (const entry of readdirSync(TYPES_DIR)) {
   if (['wix-code-types', 'backend', 'public', 'masterPage'].includes(entry)) continue;
   const dts = readIfExists(join(TYPES_DIR, entry, `${entry}.d.ts`));
   if (!dts) continue;
-  const els = parseElementsMap(dts).map(enrich);
-  if (/\$w\./.test(dts) && els.length === 0) parseWarnings.push(`${entry}/${entry}.d.ts has $w types but parsed 0 elements`);
-  const meta = pageMeta[entry] || { name: entry, file: null };
-  pages.push({ pageId: entry, name: meta.name, file: meta.file, elementCount: els.length, elements: els });
+  const parsed = parseElementsMap(dts);
+  if (/\$w\./.test(dts) && parsed.length === 0) parseWarnings.push(`${entry}/${entry}.d.ts has $w types but parsed 0 elements`);
+  pagesRaw.push({ pageId: entry, parsed, set: new Set(parsed.map(e => bare(e.id))) });
+}
+// page-specific nick sets, iterated in sorted-pageId order for deterministic tie-breaks
+const pageSets = new Map(pagesRaw.map(p => [p.pageId, p.set]).sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+
+const scans = (VISUAL && attributeScans) ? loadVisual(VISUAL) : [];
+const { masterGeom, pageGeom, diagnostics } = (scans.length && attributeScans)
+  ? attributeScans(scans, pageSets, masterSet, {})
+  : { masterGeom: {}, pageGeom: {}, diagnostics: [] };
+
+const masterChildren = childrenForGeom(masterGeom);
+const masterEls = masterParsed.map(e => enrich(e, masterGeom, masterChildren));
+
+const pages = [];
+for (const p of pagesRaw) {
+  const geomP = { ...masterGeom, ...(pageGeom[p.pageId] || {}) }; // shared chrome + THIS page's own geometry
+  const childrenP = childrenForGeom(geomP);
+  const els = p.parsed.map(e => enrich(e, geomP, childrenP));
+  const meta = pageMeta[p.pageId] || { name: p.pageId, file: null };
+  pages.push({ pageId: p.pageId, name: meta.name, file: meta.file, elementCount: els.length, elements: els });
 }
 pages.sort((a, b) => a.name.localeCompare(b.name));
+if (!QUIET && scans.length) {
+  log('\n── visual scan attribution ──');
+  for (const d of diagnostics) log(`  ${d.matched ? '✓ ' + d.matched : '· (no page)'}  ${d.scan}${d.jaccard != null ? ' · J=' + d.jaccard : ''}${d.ambiguous ? ' · AMBIGUOUS' : ''}`);
+  log('─────────────────────────────\n');
+}
+// Don't let an explicit --visual silently merge nothing — say why (the user thinks
+// layout was applied). Covers a failed lib import, an empty/garbage scan file, and
+// a scan that matched no page in this site.
+if (VISUAL) {
+  if (visualImportErr) console.error(`[wix-elements] ⚠ --visual given but visual/lib.mjs could not be loaded (${visualImportErr.message}) — layout NOT merged.`);
+  else if (!scans.length) console.error(`[wix-elements] ⚠ --visual given but no scan data loaded from ${VISUAL} — layout NOT merged.`);
+  else if (!diagnostics.some(d => d.matched)) console.error('[wix-elements] ⚠ --visual loaded but no scan matched a page in this site — layout NOT merged.');
+}
 
 // ----- site config ----------------------------------------------------------
 let site = {};
