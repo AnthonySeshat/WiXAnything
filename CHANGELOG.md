@@ -3,6 +3,14 @@
 ## Unreleased
 
 ### Added
+- **CMS bridge** (`npm run wix:cms`) — lists every **Data Collection + field schema** (each
+  field's `key`, `type`, required flag, and `REFERENCE`/`MULTI_REFERENCE` target) via the Wix
+  Data REST API into committed `wix-cms.md` / `wix-cms.json` + a `CLAUDE.md` block, each
+  collection with a ready-to-paste `wixData.query()`. Stops the agent guessing collection ids
+  and field keys when writing `wix-data`. Needs a Wix API key with *Manage Data Collections*
+  (read-only GETs; same `.env` setup as media); without one it writes a setup stub and exits
+  cleanly. Offset-paged, keeps partial results on a mid-walk failure, chained (non-fatal) into
+  `wix:full`. Setup in [`docs/CMS.md`](docs/CMS.md); pure logic in `scripts/wix-cms-lib.mjs`.
 - **Media bridge** (`npm run wix:media`) — a Wix repo has **zero image files** (only code
   syncs to Git; every photo/video lives in the cloud **Media Manager**), so an agent could
   only "see" an asset where a `wix:image://…` URL was hard-coded. This surfaces media into
@@ -13,6 +21,12 @@
   each with the ready-to-use Velo `.src`. Read-only. Chained (non-fatal) into `npm run wix:full`.
   Setup + limits in [`docs/MEDIA.md`](docs/MEDIA.md). Pure logic in `scripts/wix-media-lib.mjs`,
   covered offline by the self-test (fake-fetch folder walk/paging + code-scan e2e).
+
+### Fixed
+- **Media bridge:** a malformed `%` in a hard-coded URL no longer crashes the zero-auth scan
+  (`decodeURIComponent` is now guarded); image filenames with spaces / `#` are URL-encoded in
+  the generated Velo `.src` so it actually resolves and round-trips. Also: hyphenated Wix CDN
+  hosts (`images-wixmp-….wixmp.com`) are now matched, and templated `${…}` URLs are skipped.
 
 ## 0.2.0 — 2026-06-11
 

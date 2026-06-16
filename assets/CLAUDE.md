@@ -91,7 +91,27 @@ npm run wix:media        # refresh the media map
   copy it verbatim; don't hand-edit the mediaId. Folder names are labels for finding the
   right asset (e.g. "Materials/Sheet Metal"), not part of `.src`.
 
-## 6. Publish loop
+## 6. CMS data — read the schema before any `wix-data` query
+
+If the site uses the Wix CMS (Data Collections), the field keys and types aren't in the
+repo either — so guessing them produces queries that silently return nothing.
+
+> **Before writing `wix-data` code, read [`wix-cms.md`](./wix-cms.md).**
+> (Machine-readable copy: `wix-cms.json`.)
+
+```bash
+npm run wix:cms          # refresh the CMS schema (needs a Wix API key)
+```
+
+- Pass a collection's **`id`** verbatim to `wixData.query("<id>")` and a field's **`key`**
+  verbatim to `.eq("<key>", …)` — never guess from the CMS display label.
+- `REFERENCE` / `MULTI_REFERENCE` fields point at another collection (shown as `→ <id>`);
+  resolve with `.include("<key>")`.
+- `IMAGE` / `MEDIA_GALLERY` fields hold `wix:image://…` values — cross-reference `wix-media.md`.
+- Needs a Wix API key with the **Manage Data Collections** permission (`docs/wix-addon/CMS.md`,
+  same `.env` setup as media). Read-only — `wix:cms` only issues GETs.
+
+## 7. Publish loop
 
 Edit Velo in `src/` → `git push` → publish from the repo (`wix publish`, or the Wix
 dashboard). Don't publish local code over newer editor changes without syncing first.
@@ -103,3 +123,7 @@ dashboard). Don't publish local code over newer editor changes without syncing f
 <!-- WIX-MEDIA:START -->
 <!-- (auto-filled by `npm run wix:media` — do not edit between these markers) -->
 <!-- WIX-MEDIA:END -->
+
+<!-- WIX-CMS:START -->
+<!-- (auto-filled by `npm run wix:cms` — do not edit between these markers) -->
+<!-- WIX-CMS:END -->

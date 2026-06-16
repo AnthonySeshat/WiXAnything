@@ -34,6 +34,11 @@ export function parseDotenv(text) {
 // Velo .src form:  wix:image://v1/<mediaId>/<filename>#originWidth=W&originHeight=H
 // <mediaId> is the WixMedia GUID (the REST `media.image.image.id`, e.g.
 // "11062b_abc…~mv2.jpg"). The #origin* hint is used by Wix to pick scaling.
+
+// decodeURIComponent throws a URIError on a malformed escape (a bare "%" in a
+// hard-coded URL). Never let that abort the zero-auth code scan — fall back raw.
+function safeDecode(s) { try { return decodeURIComponent(s); } catch { return s; } }
+
 export function parseWixImageUri(uri) {
   if (typeof uri !== 'string') return null;
   const m = uri.match(/^wix:image:\/\/v1\/([^/]+)(?:\/([^#?]*))?(?:#(.*))?$/);
@@ -42,18 +47,24 @@ export function parseWixImageUri(uri) {
   const w = hash.match(/originWidth=(\d+)/);
   const h = hash.match(/originHeight=(\d+)/);
   return {
-    mediaId: decodeURIComponent(mediaId),
-    filename: filename ? decodeURIComponent(filename) : null,
+    mediaId: safeDecode(mediaId),
+    filename: filename ? safeDecode(filename) : null,
     width: w ? Number(w[1]) : null,
     height: h ? Number(h[1]) : null,
   };
 }
 
-/** Build the Velo `.src` string for an image, from its Media Manager fields. */
+/**
+ * Build the Velo `.src` string for an image, from its Media Manager fields.
+ * The filename segment is percent-encoded (Wix's canonical src does this) so a
+ * name with spaces / "#" / "%" yields a valid URI that round-trips through
+ * parseWixImageUri — agents copy this verbatim, so it must actually resolve.
+ * The mediaId is an opaque WixMedia id (only unreserved chars ~ _ - .) → left as-is.
+ */
 export function buildVeloImageUri({ mediaId, filename, width, height }) {
   if (!mediaId) return null;
   let uri = `wix:image://v1/${mediaId}`;
-  if (filename) uri += `/${filename}`;
+  if (filename) uri += `/${encodeURIComponent(filename)}`;
   const hints = [];
   if (width) hints.push(`originWidth=${width}`);
   if (height) hints.push(`originHeight=${height}`);
@@ -72,29 +83,38 @@ export function scanCodeForMedia(corpus = []) {
     if (!rec) { rec = { kind, raw, ...parsed, referencedIn: [] }; byKey.set(raw, rec); }
     if (file && !rec.referencedIn.includes(file)) rec.referencedIn.push(file);
   };
+  // Trim trailing punctuation a URL can't really end in (incl. brackets the
+  // char-class below doesn't stop at: ] } >). A match containing a template
+  // placeholder (`${…}` / `{{…}}`) is code, not a real asset — skip it.
+  const clean = (s) => s.replace(/[.,;\]}>]+$/, '');
+  const templated = (s) => /\$\{|\{\{/.test(s);
   // wix:image:// — keep the structured fields so we can show dimensions/id.
   const imgRe = /wix:image:\/\/v1\/[^\s"'`)]+/g;
   // other wix: schemes (video/audio/document/vector/shape) — capture whole token.
   const otherRe = /wix:(video|audio|document|vector|shape|secure):\/\/[^\s"'`)]+/g;
-  // public CDN media URLs that appear directly in Velo/HTML.
-  const cdnRe = /https?:\/\/(?:static\.wixstatic\.com\/media|[a-z0-9]+\.usrfiles\.com|[a-z0-9]+\.wixmp\.com)\/[^\s"'`)]+/gi;
+  // public CDN media URLs that appear directly in Velo/HTML. Subdomains are
+  // hyphenated (images-wixmp-….wixmp.com), and wixstatic serves /media + /shapes.
+  const cdnRe = /https?:\/\/(?:static\.wixstatic\.com|[a-z0-9-]+\.usrfiles\.com|[a-z0-9-]+\.wixmp\.com)\/[^\s"'`)]+/gi;
   for (const { file, txt } of corpus) {
     if (typeof txt !== 'string') continue;
     let m;
     imgRe.lastIndex = 0;
     while ((m = imgRe.exec(txt))) {
-      const raw = m[0].replace(/[.,;]+$/, '');
+      const raw = clean(m[0]);
+      if (templated(raw)) continue;
       const p = parseWixImageUri(raw) || {};
       add('image', raw, { mediaId: p.mediaId ?? null, filename: p.filename ?? null, width: p.width ?? null, height: p.height ?? null }, file);
     }
     otherRe.lastIndex = 0;
     while ((m = otherRe.exec(txt))) {
-      const raw = m[0].replace(/[.,;]+$/, '');
+      const raw = clean(m[0]);
+      if (templated(raw)) continue;
       add(m[1], raw, {}, file);
     }
     cdnRe.lastIndex = 0;
     while ((m = cdnRe.exec(txt))) {
-      const raw = m[0].replace(/[.,;]+$/, '');
+      const raw = clean(m[0]);
+      if (templated(raw)) continue;
       add('cdn', raw, {}, file);
     }
   }

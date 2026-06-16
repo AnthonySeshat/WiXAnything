@@ -63,4 +63,8 @@ if (URL) {
 // Wix API key is configured (env or .env). Never fails the run.
 run('media map  (cloud Media Manager → wix-media.md)', join(__dirname, 'wix-media.mjs'), ['--repo', REPO, '--out', OUT, '--soft']);
 
-console.log(`\n✓ done → ${join(OUT, 'wix-elements.md')}  +  ${join(OUT, 'wix-media.md')}`);
+// 5) CMS schema (non-fatal): Data Collections + fields → committed map.
+// Needs a Wix API key; without one it writes a setup stub and exits cleanly.
+run('CMS schema  (Data Collections → wix-cms.md)', join(__dirname, 'wix-cms.mjs'), ['--repo', REPO, '--out', OUT, '--soft']);
+
+console.log(`\n✓ done → ${join(OUT, 'wix-elements.md')}  +  ${join(OUT, 'wix-media.md')}  +  ${join(OUT, 'wix-cms.md')}`);

@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import * as vlib from '../visual/lib.mjs';
 import * as mlib from './wix-media-lib.mjs';
+import * as clib from './wix-cms-lib.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 let failures = 0;
@@ -192,6 +193,18 @@ try {
   ok(img && img.mediaId === 'm1~mv2.jpg', 'scanCodeForMedia: parses a wix:image:// reference');
   ok(img.referencedIn.length === 2, 'scanCodeForMedia: dedupes one URL across two files');
   ok(refs.some(r => r.kind === 'video') && refs.some(r => r.kind === 'cdn'), 'scanCodeForMedia: finds video scheme + CDN URL');
+  // filename with a space must encode → still round-trips through parse
+  const spaced = mlib.buildVeloImageUri({ mediaId: 'x~mv2.jpg', filename: 'My Photo.jpg', width: 1, height: 2 });
+  ok(spaced.includes('My%20Photo.jpg'), 'buildVeloImageUri: encodes spaces in the filename');
+  ok(mlib.parseWixImageUri(spaced).filename === 'My Photo.jpg', 'parseWixImageUri: decodes the encoded filename back (round-trip)');
+  // a malformed "%" in a hard-coded URL must NOT crash the scan
+  let crashed = false;
+  try { mlib.scanCodeForMedia([{ file: 's.js', txt: 'x="wix:image://v1/m~mv2.jpg/50%_grey.png#originWidth=1&originHeight=1";' }]); } catch { crashed = true; }
+  ok(!crashed, 'scanCodeForMedia: a bare "%" in a URL does not throw (safeDecode)');
+  // hyphenated wixmp host + templated URL handling
+  const hy = mlib.scanCodeForMedia([{ file: 'h.js', txt: 'a="https://images-wixmp-ed30a86b.wixmp.com/f/x.png"; b=`wix:image://v1/${id}/n.jpg`;' }]);
+  ok(hy.some(r => r.kind === 'cdn' && r.raw.includes('wixmp.com')), 'scanCodeForMedia: matches hyphenated wixmp host');
+  ok(!hy.some(r => /\$\{/.test(r.raw)), 'scanCodeForMedia: skips templated ${…} URLs');
   const nf = mlib.normalizeFile({ id: 'f-1', displayName: 'panel.jpg', mediaType: 'IMAGE', parentFolderId: 'fold-2', sizeInBytes: '12345', media: { image: { image: { id: 'mm~mv2.jpg', url: 'https://x/y.jpg', width: 1200, height: 800 } } } });
   ok(nf.mediaType === 'IMAGE' && nf.width === 1200 && nf.veloSrc === 'wix:image://v1/mm~mv2.jpg/panel.jpg#originWidth=1200&originHeight=800', 'normalizeFile: builds veloSrc for an image');
   const tree = mlib.foldersToTree([
@@ -244,13 +257,67 @@ try {
   ok(/WIX-MEDIA:START[\s\S]*wix-media\.md[\s\S]*WIX-MEDIA:END/.test(readFileSync(join(mdir, 'CLAUDE.md'), 'utf8')), 'CLI fills the CLAUDE.md WIX-MEDIA block');
   rmSync(mdir, { recursive: true, force: true });
 
+  // --- CMS bridge: pure lib (offline) ---------------------------------------
+  console.log('cms lib:');
+  const ncol = clib.normalizeCollection({
+    id: 'Products', displayName: 'Products', collectionType: 'NATIVE',
+    permissions: { read: 'ANYONE', insert: 'ADMIN', update: 'ADMIN', remove: 'ADMIN' },
+    fields: [
+      { key: 'title', displayName: 'Title', type: 'TEXT', required: true },
+      { key: 'hero', displayName: 'Hero', type: 'IMAGE' },
+      { key: 'maker', displayName: 'Maker', type: 'REFERENCE', typeMetadata: { reference: { referencedCollectionId: 'Makers' } } },
+      { key: '_id', displayName: 'ID', type: 'TEXT', systemField: true },
+    ],
+  });
+  ok(ncol.collectionType === 'NATIVE' && ncol.fieldCount === 4, 'normalizeCollection: type + field count');
+  ok((ncol.fields.find(f => f.key === 'maker') || {}).ref === 'Makers', 'normalizeCollection: resolves REFERENCE target');
+  ok((ncol.fields.find(f => f.key === 'title') || {}).required === true, 'normalizeCollection: required flag');
+  ok((ncol.fields.find(f => f.key === '_id') || {}).system === true, 'normalizeCollection: system field flagged');
+  ok(clib.sampleQuery(ncol) === 'const { items } = await wixData.query("Products").limit(50).find();', 'sampleQuery: uses the collection id');
+  const cmd = clib.renderCmsMarkdown({ generatedAt: 'x', site: { siteId: 's' }, source: 'Wix Data REST API', stats: { collections: 1, fields: 4, native: 1, app: 0 }, collections: [ncol] });
+  ok(/`Products`/.test(cmd) && /→ `Makers`/.test(cmd) && /wixData\.query/.test(cmd), 'renderCmsMarkdown: id, reference arrow, query snippet');
+
+  // --- CMS bridge: listCollections with fake fetch (offset paging) ----------
+  console.log('cms list (fake fetch):');
+  const PAGES = {
+    0: { collections: [{ id: 'A', fields: [] }, { id: 'B', fields: [] }], pagingMetadata: { total: 3 } },
+    2: { collections: [{ id: 'C', fields: [] }], pagingMetadata: { total: 3 } },
+  };
+  const offsets = [];
+  const cFetch = async (url) => {
+    const off = Number(new URL(url).searchParams.get('paging.offset'));
+    offsets.push(off);
+    return { ok: true, status: 200, json: async () => PAGES[off] || { collections: [], pagingMetadata: { total: 3 } }, text: async () => '' };
+  };
+  const cres = await clib.listCollections({ apiKey: 'k', siteId: 's', fetchImpl: cFetch });
+  ok(cres.collections.length === 3 && cres.collections.map(c => c.id).join('') === 'ABC', 'listCollections: offset-pages through all (A,B,C)');
+  ok(offsets[0] === 0 && offsets[1] === 2, 'listCollections: advances offset by batch size');
+  // a 403 mid-walk keeps partial results + records the error (no throw)
+  const cFail = async (url) => {
+    const off = Number(new URL(url).searchParams.get('paging.offset'));
+    if (off === 0) return { ok: true, status: 200, json: async () => ({ collections: [{ id: 'A', fields: [] }], pagingMetadata: { total: 5 } }), text: async () => '' };
+    return { ok: false, status: 403, json: async () => ({}), text: async () => 'forbidden' };
+  };
+  const cpart = await clib.listCollections({ apiKey: 'k', siteId: 's', fetchImpl: cFail });
+  ok(cpart.collections.length === 1 && cpart.error && cpart.error.code === 403, 'listCollections: mid-walk 403 keeps partial results + records error');
+
+  // --- CMS bridge: CLI no-key stub (no network) -----------------------------
+  console.log('cms CLI (no key):');
+  const cdir = mkdtempSync(join(tmpdir(), 'wix-cms-'));
+  writeFileSync(join(cdir, 'wix.config.json'), JSON.stringify({ siteId: 'cms-selftest' }));
+  const ccli = node([join(__dirname, 'wix-cms.mjs'), '--repo', cdir, '--quiet'], { env: { ...process.env, WIX_API_KEY: '', WIX_SITE_ID: '' } });
+  ok(ccli.status === 0, 'exits 0 with no API key');
+  ok(existsSync(join(cdir, 'wix-cms.json')) && existsSync(join(cdir, 'wix-cms.md')), 'writes wix-cms.json + .md stub');
+  ok(/Manage Data Collections/.test(readFileSync(join(cdir, 'wix-cms.md'), 'utf8')), 'stub explains the required permission');
+  rmSync(cdir, { recursive: true, force: true });
+
   // --- npm package ships every file the installer copies --------------------
   console.log('npm package contents:');
   const pk = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: join(__dirname, '..'), shell: true, encoding: 'utf8' });
   let packed = [];
   try { packed = (JSON.parse(pk.stdout)[0].files || []).map(f => f.path.replace(/\\/g, '/')); } catch {}
   if (packed.length) {
-    for (const need of ['.githooks/pre-commit', 'assets/CLAUDE.md', 'assets/AGENTS.md', 'assets/claude-settings.json', 'visual/scan.mjs', 'visual/lib.mjs', 'scripts/wix-init.mjs', 'scripts/wix-full.mjs', 'scripts/wix-lint.mjs', 'scripts/wix-check.mjs', 'scripts/wix-media.mjs', 'scripts/wix-media-lib.mjs', 'docs/MEDIA.md', 'templates/custom-element/element.js', 'templates/companion-app/panel/panel.js'])
+    for (const need of ['.githooks/pre-commit', 'assets/CLAUDE.md', 'assets/AGENTS.md', 'assets/claude-settings.json', 'visual/scan.mjs', 'visual/lib.mjs', 'scripts/wix-init.mjs', 'scripts/wix-full.mjs', 'scripts/wix-lint.mjs', 'scripts/wix-check.mjs', 'scripts/wix-media.mjs', 'scripts/wix-media-lib.mjs', 'docs/MEDIA.md', 'scripts/wix-cms.mjs', 'scripts/wix-cms-lib.mjs', 'docs/CMS.md', 'templates/custom-element/element.js', 'templates/companion-app/panel/panel.js'])
       ok(packed.includes(need), `npm package ships ${need} (installer copies it)`);
     ok(!packed.some(p => p.includes('node_modules')), 'npm package excludes node_modules');
   } else {
